@@ -53,6 +53,17 @@
 
 #include "mdss_fb.h"
 
+/* [All][Main][LCM][DMS][StevenChen] Add 8926DS definition 2014/04/01 begin */
+/*[Arima5908][33534][StevenChen] Read LCM ID for ATS 2014/01/30 begin */
+#if ((CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226DS_PDP2) && defined(CONFIG_BSP_HW_SKU_8226DS) \
+ ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226SS_PDP2) && defined(CONFIG_BSP_HW_SKU_8226SS) \
+ ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926SS_PDP2) && defined(CONFIG_BSP_HW_SKU_8926SS) \
+ ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926DS_PDP2) && defined(CONFIG_BSP_HW_SKU_8926DS) )
+#include <linux/gpio.h> 
+#endif
+/*[Arima5908][33534][StevenChen] Read LCM ID for ATS 2014/01/30 end */
+/* [All][Main][LCM][DMS][StevenChen] Add 8926DS definition 2014/04/01 end */
+
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
 #else
@@ -316,14 +327,62 @@ static ssize_t mdss_mdp_show_blank_event(struct device *dev,
 	return ret;
 }
 
+/* [All][Main][LCM][DMS][39445][StevenChen] Read LCM ID info. for ATS 2014/06/12 begin */
+/* [All][Main][LCM][DMS][StevenChen] Add 8926DS definition 2014/04/01 begin */
+/* [Arima5908][33643][StevenChen] Fix reading LCM ID issue 2014/02/10 begin */
+/*[Arima5908][33534][StevenChen] Read LCM ID for ATS 2014/01/30 begin */
+#if ((CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226DS_PDP2) && defined(CONFIG_BSP_HW_SKU_8226DS) \
+ ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226SS_PDP2) && defined(CONFIG_BSP_HW_SKU_8226SS) \
+ ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926SS_PDP2) && defined(CONFIG_BSP_HW_SKU_8926SS) \
+ ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926DS_PDP2) && defined(CONFIG_BSP_HW_SKU_8926DS) )
+/* [All][Main][LCM][DMS][StevenChen] Add 8926DS definition 2014/04/01 end */
+#define LCM_ID_PIN	27
+extern char temp_buf[];		
+static ssize_t mdss_fb_lcm_module_id(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	ssize_t ret = 0;
+			
+	if(*temp_buf != '\0')
+		ret = snprintf(buf, PAGE_SIZE, temp_buf);
+	else
+		ret = snprintf(buf, PAGE_SIZE, "TRULY\n");
+
+	return ret;
+}
+#endif
+/*[Arima5908][33534][StevenChen] Read LCM ID for ATS 2014/01/30 end */
+/* [Arima5908][33643][StevenChen] Fix reading LCM ID issue 2014/02/10 end */
+/* [All][Main][LCM][DMS][39445][StevenChen] Read LCM ID info. for ATS 2014/06/12 end */
+
 static DEVICE_ATTR(msm_fb_type, S_IRUGO, mdss_fb_get_type, NULL);
 static DEVICE_ATTR(msm_fb_split, S_IRUGO, mdss_fb_get_split, NULL);
 static DEVICE_ATTR(show_blank_event, S_IRUGO, mdss_mdp_show_blank_event, NULL);
+/* [All][Main][LCM][DMS][StevenChen] Add 8926DS definition 2014/04/01 begin */
+/*[Arima5908][33534][StevenChen] Read LCM ID for ATS 2014/01/30 begin */
+#if ((CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226DS_PDP2) && defined(CONFIG_BSP_HW_SKU_8226DS) \
+ ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226SS_PDP2) && defined(CONFIG_BSP_HW_SKU_8226SS) \
+ ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926SS_PDP2) && defined(CONFIG_BSP_HW_SKU_8926SS) \
+ ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926DS_PDP2) && defined(CONFIG_BSP_HW_SKU_8926DS) )
+static DEVICE_ATTR(lcm_module_id, S_IRUGO, mdss_fb_lcm_module_id, NULL);
+#endif
+/*[Arima5908][33534][StevenChen] Read LCM ID for ATS 2014/01/30 end */
+/* [All][Main][LCM][DMS][StevenChen] Add 8926DS definition 2014/04/01 end */
 
 static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_msm_fb_type.attr,
 	&dev_attr_msm_fb_split.attr,
 	&dev_attr_show_blank_event.attr,
+/* [All][Main][LCM][DMS][StevenChen] Add 8926DS definition 2014/04/01 begin */
+/*[Arima5908][33534][StevenChen] Read LCM ID for ATS 2014/01/30 begin */
+#if ((CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226DS_PDP2) && defined(CONFIG_BSP_HW_SKU_8226DS) \
+ ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226SS_PDP2) && defined(CONFIG_BSP_HW_SKU_8226SS) \
+ ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926SS_PDP2) && defined(CONFIG_BSP_HW_SKU_8926SS) \
+ ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926DS_PDP2) && defined(CONFIG_BSP_HW_SKU_8926DS) )
+	&dev_attr_lcm_module_id.attr,	
+#endif
+/*[Arima5908][33534][StevenChen] Read LCM ID for ATS 2014/01/30 end */
+/* [All][Main][LCM][DMS][StevenChen] Add 8926DS definition 2014/04/01 end */
 	NULL,
 };
 

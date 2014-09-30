@@ -837,6 +837,11 @@ static struct device_node *mdss_dsi_pref_prim_panel(
  *
  * returns pointer to panel node on success, NULL on error.
  */
+
+/* [All][Main][LCM][DMS][39445][StevenChen] Read LCM ID info. for ATS 2014/06/12 begin */
+#define TEMP_BUF_LEN		14
+char temp_buf[TEMP_BUF_LEN]={0};
+/* [All][Main][LCM][DMS][39445][StevenChen] Read LCM ID info. for ATS 2014/06/12 end */
 static struct device_node *mdss_dsi_find_panel_of_node(
 		struct platform_device *pdev, char *panel_cfg)
 {
@@ -872,6 +877,11 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 				panel_name[i] = *(stream + i);
 			panel_name[i] = 0;
 		}
+	
+		/* [All][Main][LCM][DMS][39445][StevenChen] Read LCM ID info. for ATS 2014/06/12 begin */
+		/* Skip "qcom,mdss_dsi_" */
+		strlcpy(temp_buf, (panel_name+14), TEMP_BUF_LEN);
+		/* [All][Main][LCM][DMS][39445][StevenChen] Read LCM ID info. for ATS 2014/06/12 end */
 
 		pr_debug("%s:%d:%s:%s\n", __func__, __LINE__,
 			 panel_cfg, panel_name);
@@ -898,6 +908,15 @@ end:
 
 	return dsi_pan_node;
 }
+
+/* [All][Main][LCM][DMS][39892][StevenChen] Add function of getting panel name for other kernel module use 2014/06/20 begin */
+void mdss_get_panel_name(char *StrBuff)
+{
+	strlcpy(StrBuff, temp_buf, TEMP_BUF_LEN);
+}
+
+EXPORT_SYMBOL(mdss_get_panel_name);
+/* [All][Main][LCM][DMS][39892][StevenChen] Add function of getting panel name for other kernel module use 2014/06/20 end */
 
 static int __devinit mdss_dsi_ctrl_probe(struct platform_device *pdev)
 {

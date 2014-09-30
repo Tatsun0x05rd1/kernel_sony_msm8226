@@ -28,8 +28,13 @@
 #define CCI_I2C_QUEUE_1_SIZE 16
 #define CYCLES_PER_MICRO_SEC 4915
 #define CCI_MAX_DELAY 10000
-
+//[BSP][CAMERA][Kent][34147][01Begin]sometime camera will open fialed because cci_init timeout.
+#if 0
 #define CCI_TIMEOUT msecs_to_jiffies(100)
+#else
+#define CCI_TIMEOUT msecs_to_jiffies(500)
+#endif
+//[BSP][CAMERA][Kent][34147][01End]sometime camera will open fialed because cci_init timeout.
 
 /* TODO move this somewhere else */
 #define MSM_CCI_DRV_NAME "msm_cci"
