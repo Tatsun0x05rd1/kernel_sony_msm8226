@@ -457,12 +457,7 @@ persistent_ram_init_ringbuffer(struct device *dev, bool ecc)
 	return __persistent_ram_init(dev, ecc);
 }
 
-// [All][Main][Ramdump][DMS][34159][akenhsu] Add ramconsole for share kernel info to SBL1 20140222 BEGIN
-#ifdef CONFIG_SONY_FLAMINGO
-int __devinit persistent_ram_early_init(struct persistent_ram *ram)
-#else
 int __init persistent_ram_early_init(struct persistent_ram *ram)
-#endif
 {
 	int ret;
 

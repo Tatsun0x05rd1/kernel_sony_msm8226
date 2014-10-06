@@ -113,13 +113,8 @@ endif
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-qrd-dvt.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-720p-cdp.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-1080p-cdp.dtb
-# [All][Main][SI][DMS][33120][akenhsu] Modify DTS mach. - LINUX 20140117 BEGIN
-#ifdef CONFIG_SONY_FLAMINGO
 	dtb-$(CONFIG_ARCH_MSM8226)  += msm8926-8926ss_sp.dtb
-else # Qualcomm Original
-# [All][Main][SI][DMS][33120][akenhsu] 20140117 END
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-720p-mtp.dtb
-endif
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-1080p-mtp.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-qrd.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-qrd-skug.dtb
