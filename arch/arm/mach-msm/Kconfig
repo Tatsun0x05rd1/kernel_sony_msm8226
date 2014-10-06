@@ -3202,17 +3202,6 @@ config MSM_CACHE_DUMP_ON_PANIC
 	  look at them in a RAM dump will give useless data. Select this if you
 	  want to dump the L1 and L2 caches on panic before any flush occurs.
 	  If unsure, say N
-	  
-# [All][Main][power][DMS][34038][Raymond Lin] Add SONY Feature 17920 Stamina mode patch BEGIN	  
-config SONY_SSM
-	bool "Support Super Stamina Mode"
-	default n
-	help
-	  This enables support for power mode notifications, required by Super
-	  Stamina Mode. The driver will let a user space application register
-	  for notifications when the device is ready to switch into a new
-	  power mode.	  	  
-# [All][Main][power][DMS][34038][Raymond Lin] Add SONY Feature 17920 Stamina mode patch END	  
 
 config MSM_HSIC_SYSMON
 	tristate "MSM HSIC system monitor driver"
