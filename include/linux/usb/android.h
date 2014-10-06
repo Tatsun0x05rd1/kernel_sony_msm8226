@@ -26,8 +26,6 @@ struct android_usb_platform_data {
 	u32 swfi_latency;
 	u8 usb_core_id;
 	bool cdrom;
-	// 2014/3/25 hilbert-35244 [All][Main][USB][DMS05339959] Support PC Companion 
-	char can_stall;
 	bool internal_ums;
 	char streaming_func[MAX_STREAMING_FUNCS][FUNC_NAME_LEN];
 	int  streaming_func_count;

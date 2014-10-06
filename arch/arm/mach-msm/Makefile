@@ -369,18 +369,6 @@ obj-$(CONFIG_BT_MSM_PINTEST)  += btpintest.o
 obj-$(CONFIG_MSM_FAKE_BATTERY) += fish_battery.o
 obj-$(CONFIG_MSM_RPC_VIBRATOR) += msm_vibrator.o
 obj-$(CONFIG_MSM_NATIVE_RESTART) += restart.o
-# [All][Main][Ramdump][DMS][33828][akenhsu] Add restart_parameters for Linux and SBL1 20140214 BEGIN
-# [All][Main][Ramdump][DMS][33996][akenhsu] Add productinfo and ramdmpinfo in /proc folder 20140219 BEGIN
-# [All][Main][Ramdump][DMS][34161][akenhsu] Add /proc/last_amss log to store F3 trace log of MODEM while MODEM was crashed. 20140224 BEGIN
-# [All][Main][Ramdump][DMS][34212][akenhsu] Make subsystem_ramdump write log to kernel log instead of write to stderr 20140225 BEGIN
-obj-$(CONFIG_MSM_NATIVE_RESTART) += restart_parameters.o
-obj-$(CONFIG_MSM_NATIVE_RESTART) += ramdump_proc_files.o
-obj-$(CONFIG_MSM_NATIVE_RESTART) += last_radio_log.o
-obj-$(CONFIG_MSM_NATIVE_RESTART) += last_ssr_kmsg.o
-# [All][Main][Ramdump][DMS][33828][akenhsu] 20140214 END
-# [All][Main][Ramdump][DMS][33996][akenhsu] 20140219 END
-# [All][Main][Ramdump][DMS][34161][akenhsu] 20140224 END
-# [All][Main][Ramdump][DMS][34212][akenhsu] 20140225 END
 obj-$(CONFIG_MSM_MODEM_RESTART) += restart_7k.o
 
 obj-$(CONFIG_MSM_PROC_COMM_REGULATOR) += proccomm-regulator.o
