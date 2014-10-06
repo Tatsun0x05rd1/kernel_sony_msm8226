@@ -25,14 +25,6 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
-// [All][Main][Ramdump][DMS][34159][akenhsu] Add ramconsole for share kernel info to SBL1 20140222 BEGIN
-#define IS_ARIMA_E2_SKU_ALL \
-( (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226DS_PDP1) && defined(CONFIG_BSP_HW_SKU_8226DS) || \
-  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226SS_PDP1) && defined(CONFIG_BSP_HW_SKU_8226SS) || \
-  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926DS_PDP1) && defined(CONFIG_BSP_HW_SKU_8926DS) || \
-  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926SS_PDP1) && defined(CONFIG_BSP_HW_SKU_8926SS) )
-// [All][Main][Ramdump][DMS][34159][akenhsu] 20140222 END
-
 struct persistent_ram_buffer {
 	uint32_t    sig;
 	atomic_t    start;
@@ -466,12 +458,11 @@ persistent_ram_init_ringbuffer(struct device *dev, bool ecc)
 }
 
 // [All][Main][Ramdump][DMS][34159][akenhsu] Add ramconsole for share kernel info to SBL1 20140222 BEGIN
-#if IS_ARIMA_E2_SKU_ALL
+#ifdef CONFIG_SONY_FLAMINGO
 int __devinit persistent_ram_early_init(struct persistent_ram *ram)
 #else
 int __init persistent_ram_early_init(struct persistent_ram *ram)
-#endif // IS_ARIMA_E2_SKU_ALL
-// [All][Main][Ramdump][DMS][34159][akenhsu] 20140222 END
+#endif
 {
 	int ret;
 

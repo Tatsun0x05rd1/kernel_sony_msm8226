@@ -22,15 +22,7 @@
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-// [All][Main][Ramdump][DMS][34159][akenhsu] Add ramconsole for share kernel info to SBL1 20140222 BEGIN
 #include <linux/of.h>
-
-#define IS_ARIMA_E2_SKU_ALL \
-( (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226DS_PDP1) && defined(CONFIG_BSP_HW_SKU_8226DS) || \
-  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226SS_PDP1) && defined(CONFIG_BSP_HW_SKU_8226SS) || \
-  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926DS_PDP1) && defined(CONFIG_BSP_HW_SKU_8926DS) || \
-  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926SS_PDP1) && defined(CONFIG_BSP_HW_SKU_8926SS) )
-// [All][Main][Ramdump][DMS][34159][akenhsu] 20140222 END
 #include "ram_console.h"
 
 static struct persistent_ram_zone *ram_console_zone;
@@ -60,7 +52,7 @@ void ram_console_enable_console(int enabled)
 }
 
 // [All][Main][Ramdump][DMS][34159][akenhsu] Add ramconsole for share kernel info to SBL1 20140222 BEGIN
-#if IS_ARIMA_E2_SKU_ALL
+#ifdef CONFIG_SONY_FLAMINGO
 static char ram_console_name[32];
 
 static struct persistent_ram_descriptor ram_console_desc = {
@@ -74,22 +66,20 @@ static struct persistent_ram ram_console_ram = {
 	.num_descs = 1,
 	.descs = &ram_console_desc,
 };
-#endif // IS_ARIMA_E2_SKU_ALL
-// [All][Main][Ramdump][DMS][34159][akenhsu] 20140222 END
+#endif
 
 static int __devinit ram_console_probe(struct platform_device *pdev)
 {
 // [All][Main][Ramdump][DMS][34159][akenhsu] Add ramconsole for share kernel info to SBL1 20140222 BEGIN
-#if IS_ARIMA_E2_SKU_ALL
+#ifdef CONFIG_SONY_FLAMINGO
 	struct ram_console_platform_data *pdata;
 #else
 	struct ram_console_platform_data *pdata = pdev->dev.platform_data;
-#endif // IS_ARIMA_E2_SKU_ALL
-// [All][Main][Ramdump][DMS][34159][akenhsu] 20140222 END
+#endif
 	struct persistent_ram_zone *prz;
 
 // [All][Main][Ramdump][DMS][34159][akenhsu] Add ramconsole for share kernel info to SBL1 20140222 BEGIN
-#if IS_ARIMA_E2_SKU_ALL
+#ifdef CONFIG_SONY_FLAMINGO
 	int of_ret = 0;
 	u32 of_val[2];
 
@@ -115,8 +105,7 @@ static int __devinit ram_console_probe(struct platform_device *pdev)
 	} else {
 		pdata = pdev->dev.platform_data;
 	}
-#endif // IS_ARIMA_E2_SKU_ALL
-// [All][Main][Ramdump][DMS][34159][akenhsu] 20140222 END
+#endif
 
 	prz = persistent_ram_init_ringbuffer(&pdev->dev, true);
 	if (IS_ERR(prz))
@@ -138,23 +127,21 @@ static int __devinit ram_console_probe(struct platform_device *pdev)
 }
 
 // [All][Main][Ramdump][DMS][34159][akenhsu] Add ramconsole for share kernel info to SBL1 20140222 BEGIN
-#if IS_ARIMA_E2_SKU_ALL
+#ifdef CONFIG_SONY_FLAMINGO
 static struct of_device_id ram_console_dt_match[] = {
 	{	.compatible = "qcom,ram-console",
 	},
 	{}
 };
-#endif // IS_ARIMA_E2_SKU_ALL
-// [All][Main][Ramdump][DMS][34159][akenhsu] 20140222 END
+#endif
 
 static struct platform_driver ram_console_driver = {
 	.driver		= {
 		.name	= "ram_console",
 // [All][Main][Ramdump][DMS][34159][akenhsu] Add ramconsole for share kernel info to SBL1 20140222 BEGIN
-#if IS_ARIMA_E2_SKU_ALL
+#ifdef CONFIG_SONY_FLAMINGO
 		.of_match_table = ram_console_dt_match,
-#endif // IS_ARIMA_E2_SKU_ALL
-// [All][Main][Ramdump][DMS][34159][akenhsu] 20140222 END
+#endif
 	},
 	.probe = ram_console_probe,
 };
