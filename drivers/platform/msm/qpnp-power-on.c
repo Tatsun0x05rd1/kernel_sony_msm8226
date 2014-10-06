@@ -124,17 +124,10 @@ struct qpnp_pon {
 
 static struct qpnp_pon *sys_reset_dev;
 
-/* [Arima5908][42150][JessicaTseng] [All][Main][Key][DMS]Modify reset key (power key + volume up) timer from 3 to 10 sec. 20140801 start */
-/* [Arima5908][32719][JessicaTseng] [All][Main][KEY][DMS]Porting reset key 20140103 start */
-//#if IS_KEEP_DISABLE_S2_RESET
-#if 1
 static u32 s1_delay[PON_S1_COUNT_MAX + 1] = {
 	0 , 32, 56, 80, 138, 184, 272, 408, 608, 904, 1352, 2048,
 	3072, 4480, 6720, 10256
 };
-#endif
-/* [Arima5908][32719][JessicaTseng] [All][Main][KEY][DMS]Porting reset key 20140103 end */
-/* [Arima5908][42150][JessicaTseng] [All][Main][Key][DMS]Modify reset key (power key + volume up) timer from 3 to 10 sec. 20140801 end */
 
 static const char * const qpnp_pon_reason[] = {
 	[0] = "Triggered from Hard Reset",
@@ -511,7 +504,6 @@ static void bark_work_func(struct work_struct *work)
 			goto err_return;
 		}
 #endif
-/* [Arima5908][32719][JessicaTseng] [All][Main][KEY][DMS]Porting reset key 20140103 end */
 		/* re-arm the work */
 		schedule_delayed_work(&pon->bark_work, QPNP_KEY_STATUS_DELAY);
 	}
@@ -526,7 +518,6 @@ static irqreturn_t qpnp_resin_bark_irq(int irq, void *_pon)
 #if IS_KEEP_DISABLE_S2_RESET
 	int rc;
 #endif
-/* [Arima5908][32719][JessicaTseng] [All][Main][KEY][DMS]Porting reset key 20140103 end */
 	struct qpnp_pon *pon = _pon;
 	struct qpnp_pon_config *cfg;
 
@@ -549,7 +540,7 @@ static irqreturn_t qpnp_resin_bark_irq(int irq, void *_pon)
 		goto err_exit;
 	}
 #endif
-/* [Arima5908][32719][JessicaTseng] [All][Main][KEY][DMS]Porting reset key 20140103 end */
+
 	/* report the key event */
 	input_report_key(pon->pon_input, cfg->key_code, 1);
 	input_sync(pon->pon_input);
@@ -590,10 +581,6 @@ qpnp_config_pull(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
 	return rc;
 }
 
-/* [Arima5908][42150][JessicaTseng] [All][Main][Key][DMS]Modify reset key (power key + volume up) timer from 3 to 10 sec. 20140801 start */
-/* [Arima5908][32719][JessicaTseng] [All][Main][KEY][DMS]Porting reset key 20140103 start */
-//#if IS_KEEP_DISABLE_S2_RESET
-#if 1
 static int __devinit
 qpnp_config_reset(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
 {
@@ -617,9 +604,6 @@ qpnp_config_reset(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
 	default:
 		return -EINVAL;
 	}
-/* [Arima5908][32719][JessicaTseng] [All][Main][KEY][DMS]Porting reset key 20140103 start */
-//#if IS_KEEP_DISABLE_S2_RESET
-#if 1
 	/* disable S2 reset */
 	rc = qpnp_pon_masked_write(pon, cfg->s2_cntl2_addr,
 				QPNP_PON_S2_CNTL_EN, 0);
@@ -627,8 +611,6 @@ qpnp_config_reset(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
 		dev_err(&pon->spmi->dev, "Unable to configure S2 enable\n");
 		return rc;
 	}
-#endif
-/* [Arima5908][32719][JessicaTseng] [All][Main][KEY][DMS]Porting reset key 20140103 end */
 
 	usleep(100);
 
@@ -674,9 +656,6 @@ qpnp_config_reset(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
 
 	return 0;
 }
-#endif
-/* [Arima5908][32719][JessicaTseng] [All][Main][KEY][DMS]Porting reset key 20140103 end */
-/* [Arima5908][42150][JessicaTseng] [All][Main][Key][DMS]Modify reset key (power key + volume up) timer from 3 to 10 sec. 20140801 end */
 
 static int __devinit
 qpnp_pon_request_irqs(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
@@ -1032,14 +1011,12 @@ static int __devinit qpnp_pon_config_init(struct qpnp_pon *pon)
 			dev_err(&pon->spmi->dev, "Unable to config pull-up\n");
 			goto unreg_input_dev;
 		}
-				
-/* [Arima5908][42150][JessicaTseng] [All][Main][Key][DMS]Modify reset key (power key + volume up) timer from 3 to 10 sec. 20140801 start */
-/* [Arima5908][32719][JessicaTseng] [All][Main][KEY][DMS]Porting reset key 20140103 start */
-//#if IS_KEEP_DISABLE_S2_RESET
-#if 1
 		/* Configure the reset-configuration */
-		//if (cfg->support_reset) {
+#ifdef CONFIG_SONY_FLAMINGO
 		if ((cfg->support_reset) && (cfg->pon_type == PON_KPDPWR_RESIN)) {
+#else
+		if (cfg->support_reset) {
+#endif
 			rc = qpnp_config_reset(pon, cfg);
 			if (rc) {
 				dev_err(&pon->spmi->dev,
@@ -1047,10 +1024,6 @@ static int __devinit qpnp_pon_config_init(struct qpnp_pon *pon)
 				goto unreg_input_dev;
 			}
 		}
-#endif		
-/* [Arima5908][32719][JessicaTseng] [All][Main][KEY][DMS]Porting reset key 20140103 end */
-/* [Arima5908][42150][JessicaTseng] [All][Main][Key][DMS]Modify reset key (power key + volume up) timer from 3 to 10 sec. 20140801 end */
-
 		rc = qpnp_pon_request_irqs(pon, cfg);
 		if (rc) {
 			dev_err(&pon->spmi->dev, "Unable to request-irq's\n");
@@ -1204,8 +1177,7 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 			dev_err(&spmi->dev, "Unable to set S3 debounce\n");
 			return rc;
 		}
-#endif		
-/* [Arima5908][33332][JessicaTseng] [All][Main][Key][DMS]S3 reset timer is only controlled in SBL 20140123 end */
+#endif
 	}
 
 	dev_set_drvdata(&spmi->dev, pon);

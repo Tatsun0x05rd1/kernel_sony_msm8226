@@ -540,7 +540,7 @@ enum af_camera_name {
 	ACTUATOR_MAIN_CAM_4,
 	ACTUATOR_MAIN_CAM_5,
 //[All][Main][Camera][40101]Modify for Camera Second source 20140411 S
-#if CONFIG_BSP_HW_SKU_ALL
+#ifdef CONFIG_SONY_FLAMINGO
 	ACTUATOR_MAIN_CAM_6,	
 #endif
 	ACTUATOR_WEB_CAM_0,

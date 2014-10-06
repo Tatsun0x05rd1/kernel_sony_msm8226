@@ -155,12 +155,9 @@ int live_state=1;
 
 int RECOVERY=0x00;
 int FW_VERSION=0x00;
-/* [Arima5908][35614][JessicaTseng] [All][Main][TP][DMS]Add 8926DS definition 20140402 start */
+
 /*[Arima5908][27559][bozhi_lin] porting elan-ektf3135 touch driver 20131203 begin*/
-#if ((CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226DS_PDP1) && defined(CONFIG_BSP_HW_SKU_8226DS) \
- ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226SS_PDP1) && defined(CONFIG_BSP_HW_SKU_8226SS) \
- ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926SS_PDP1) && defined(CONFIG_BSP_HW_SKU_8926SS) \
- ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926DS_PDP1) && defined(CONFIG_BSP_HW_SKU_8926DS) )
+#ifdef CONFIG_SONY_FLAMINGO
 int X_RESOLUTION=832;	// 768
 int Y_RESOLUTION=1472;	// 1344
 #else
@@ -168,7 +165,7 @@ int X_RESOLUTION=1280;	// nexus7 1280
 int Y_RESOLUTION=2112;	// nexus7 2112
 #endif
 /*[Arima5908][27559][bozhi_lin] 20131203 end  */
-/* [Arima5908][35614][JessicaTseng] [All][Main][TP][DMS]Add 8926DS definition 20140402 end */
+
 int FW_ID=0x00;
 int work_lock=0x00;
 int power_lock=0x00;
