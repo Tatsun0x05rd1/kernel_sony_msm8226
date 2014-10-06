@@ -308,10 +308,8 @@ static u8 kpdbl_debug_regs[] = {
 };
 
 /* [Arima5908][32708][JessicaTseng] [All][Main][LED][DMS]Porting R/G/B LED 20140103 start */
-#define IS_USE_ARIMA_BLINK 1
-#if IS_USE_ARIMA_BLINK
-
-#define MAX_BLINK_LUT 5//2
+#ifdef CONFIG_SONY_FLAMINGO
+#define MAX_BLINK_LUT 5
 
 struct arima_lut_params {
     int ramp_step_ms;
@@ -339,7 +337,6 @@ static struct arima_lut_params g_lut_params[MAX_BLINK_LUT] = {
 		  40, 30, 20, 10, 00,
 		}
 	},
-/* [Arima5908][36997][JessicaTseng] [All][Main][LED][DMS]Fine-tune LED LPG timing 20140428 start */
 	// red LED
 	{
 		20,
@@ -361,10 +358,9 @@ static struct arima_lut_params g_lut_params[MAX_BLINK_LUT] = {
 		{ 00, 20
 		}
 	},		
-/* [Arima5908][36997][JessicaTseng] [All][Main][LED][DMS]Fine-tune LED LPG timing 20140428 end */
 };
-#endif // IS_USE_ARIMA_BLINK
-/* [Arima5908][32708][JessicaTseng] [All][Main][LED][DMS]Porting R/G/B LED 20140103 end */
+#endif
+
 /**
  *  pwm_config_data - pwm configuration data
  *  @lut_params - lut parameters to be used by pwm driver
@@ -850,10 +846,10 @@ static int qpnp_mpp_set(struct qpnp_led_data *led)
 	}
 
 /* [Arima5908][32708][JessicaTseng] [All][Main][LED][DMS]Porting R/G/B LED 20140103 start */
-	//if (led->mpp_cfg->pwm_mode != MANUAL_MODE)
-		//led->mpp_cfg->pwm_cfg->blinking = false;
-/* [Arima5908][32708][JessicaTseng] [All][Main][LED][DMS]Porting R/G/B LED 20140103 end */
-
+#ifndef CONFIG_SONY_FLAMINGO
+	if (led->mpp_cfg->pwm_mode != MANUAL_MODE)
+		led->mpp_cfg->pwm_cfg->blinking = false;
+#endif
 	qpnp_dump_regs(led, mpp_debug_regs, ARRAY_SIZE(mpp_debug_regs));
 
 	return 0;
@@ -1876,14 +1872,13 @@ static ssize_t pause_lo_store(struct device *dev,
 
 	pwm_free(pwm_cfg->pwm_dev);
 	pwm_cfg->lut_params.lut_pause_lo = pause_lo;
-
 /* [Arima5908][32708][JessicaTseng] [All][Main][LED][DMS]Porting R/G/B LED 20140103 start */
+#ifdef CONFIG_SONY_FLAMINGO
 	if (pause_lo)
 		pwm_cfg->lut_params.flags |= PM_PWM_LUT_PAUSE_LO_EN;
 	else
 		pwm_cfg->lut_params.flags &= ~PM_PWM_LUT_PAUSE_LO_EN;
-/* [Arima5908][32708][JessicaTseng] [All][Main][LED][DMS]Porting R/G/B LED 20140103 end */
-
+#endif
 	ret = qpnp_pwm_init(pwm_cfg, led->spmi_dev, led->cdev.name);
 	if (ret) {
 		pwm_cfg->lut_params.lut_pause_lo = previous_pause_lo;
@@ -1936,14 +1931,13 @@ static ssize_t pause_hi_store(struct device *dev,
 
 	pwm_free(pwm_cfg->pwm_dev);
 	pwm_cfg->lut_params.lut_pause_hi = pause_hi;
-
 /* [Arima5908][32708][JessicaTseng] [All][Main][LED][DMS]Porting R/G/B LED 20140103 start */
+#ifdef CONFIG_SONY_FLAMINGO
 	if (pause_hi)
 		pwm_cfg->lut_params.flags |= PM_PWM_LUT_PAUSE_HI_EN;
 	else
 		pwm_cfg->lut_params.flags &= ~PM_PWM_LUT_PAUSE_HI_EN; 
-/* [Arima5908][32708][JessicaTseng] [All][Main][LED][DMS]Porting R/G/B LED 20140103 start */
-
+#endif
 	ret = qpnp_pwm_init(pwm_cfg, led->spmi_dev, led->cdev.name);
 	if (ret) {
 		pwm_cfg->lut_params.lut_pause_hi = previous_pause_hi;
@@ -2202,22 +2196,20 @@ restore:
 }
 
 /* [Arima5908][32708][JessicaTseng] [All][Main][LED][DMS]Porting R/G/B LED 20140103 start */
-#if IS_USE_ARIMA_BLINK
+#ifdef CONFIG_SONY_FLAMINGO
 static int led_lut_cfg_arima(struct qpnp_led_data *led, struct pwm_config_data *pwm_cfg, int blink_mode)
 {
 	int rc = 0, i;
 
 	if (blink_mode > MAX_BLINK_LUT || blink_mode <= 0) return -EINVAL;
-	blink_mode -= 1; // blink 1 matched lut_param[0]
+	blink_mode -= 1;
 	
-/* [Arima5908][33453][JessicaTseng] [All][Main][LED][DMS]Enable LED blinking function 20140127 start */
 	if(strcmp(led->cdev.name, "red") == 0)
 	 blink_mode = 2;
 	else if(strcmp(led->cdev.name, "green") == 0)
 	 blink_mode = 3;
 	else if(strcmp(led->cdev.name, "blue") == 0)
 	 blink_mode = 4;
-/* [Arima5908][33453][JessicaTseng] [All][Main][LED][DMS]Enable LED blinking function 20140127 end */
  	
 	pwm_cfg->duty_cycles->num_duty_pcts = g_lut_params[blink_mode].lut_len;
 	pwm_cfg->lut_params.idx_len = g_lut_params[blink_mode].lut_len;
@@ -2226,7 +2218,6 @@ static int led_lut_cfg_arima(struct qpnp_led_data *led, struct pwm_config_data *
 	pwm_cfg->lut_params.ramp_step_ms = g_lut_params[blink_mode].ramp_step_ms;
 	
 	// Reconfig look-up table
-/* [Arima5908][33548][JessicaTseng] [ALL][Main][LED][DMS]Fix re-allocation duty_pcts for LED blinking function 20140204 start */
 	if (!pwm_cfg->duty_cycles->duty_pcts) {
 		pwm_cfg->duty_cycles->duty_pcts =
 			devm_kzalloc(&led->spmi_dev->dev,
@@ -2239,16 +2230,13 @@ static int led_lut_cfg_arima(struct qpnp_led_data *led, struct pwm_config_data *
 			goto bad_lpg_params;
 		}
 	}
-/* [Arima5908][33548][JessicaTseng] [ALL][Main][LED][DMS]Fix re-allocation duty_pcts for LED blinking function 20140204 end */
 
 	for (i = 0; i<pwm_cfg->duty_cycles->num_duty_pcts; i++) {
 		pwm_cfg->duty_cycles->duty_pcts[i] = g_lut_params[blink_mode].lut_table[i];
 	}
 
-/* [Arima5908][33453][JessicaTseng] [All][Main][LED][DMS]Enable LED blinking function 20140127 start */
 	if((blink_mode >= 2)&&(blink_mode <= 4))
 		pwm_cfg->duty_cycles->duty_pcts[i-1] = led->cdev.brightness;
-/* [Arima5908][33453][JessicaTseng] [All][Main][LED][DMS]Enable LED blinking function 20140127 end */
  	
 	return rc;
 bad_lpg_params:
@@ -2279,8 +2267,7 @@ static void led_blink_arima(struct qpnp_led_data *led,
 		qpnp_led_set(&led->cdev, led->cdev.brightness);
 	}
 }
-#endif // IS_USE_ARIMA_BLINK
-/* [Arima5908][32708][JessicaTseng] [All][Main][LED][DMS]Porting R/G/B LED 20140103 end */
+#endif
 
 static void led_blink(struct qpnp_led_data *led,
 			struct pwm_config_data *pwm_cfg)
@@ -2295,9 +2282,10 @@ static void led_blink(struct qpnp_led_data *led,
 			pwm_cfg->blinking = false;
 			pwm_cfg->mode = pwm_cfg->default_mode;
 /* [Arima5908][32708][JessicaTseng] [All][Main][LED][DMS]Porting R/G/B LED 20140103 start */
+#ifdef CONFIG_SONY_FLAMINGO
 			pwm_cfg->lut_params.lut_pause_hi = 0;
 			pwm_cfg->lut_params.lut_pause_lo = 0;
-/* [Arima5908][32708][JessicaTseng] [All][Main][LED][DMS]Porting R/G/B LED 20140103 end */
+#endif
 			if (led->id == QPNP_ID_LED_MPP)
 				led->mpp_cfg->pwm_mode = pwm_cfg->default_mode;
 		}
@@ -2320,32 +2308,29 @@ static ssize_t blink_store(struct device *dev,
 	if (ret)
 		return ret;
 	led = container_of(led_cdev, struct qpnp_led_data, cdev);
-	
 /* [Arima5908][33453][JessicaTseng] [All][Main][LED][DMS]Enable LED blinking function 20140127 start */
-#if IS_USE_ARIMA_BLINK
+#ifdef CONFIG_SONY_FLAMINGO
 	if(led->id == QPNP_ID_LED_MPP)
 	{
-	 if(blinking == 0)
-	  led->cdev.brightness = 0;
+		if(blinking == 0)
+		led->cdev.brightness = 0;
 	}
 	else
 	{
-	 led->cdev.brightness = blinking ? led->cdev.max_brightness : 0;
+	led->cdev.brightness = blinking ? led->cdev.max_brightness : 0;
 	}
 #else
 	led->cdev.brightness = blinking ? led->cdev.max_brightness : 0;
 #endif	
-/* [Arima5908][33453][JessicaTseng] [All][Main][LED][DMS]Enable LED blinking function 20140127 end */
 
 	switch (led->id) {
 	case QPNP_ID_LED_MPP:
 /* [Arima5908][32708][JessicaTseng] [All][Main][LED][DMS]Porting R/G/B LED 20140103 start */
-#if IS_USE_ARIMA_BLINK
-	    led_blink_arima(led, led->mpp_cfg->pwm_cfg, (int)blinking);
+#ifdef CONFIG_SONY_FLAMINGO
+		led_blink_arima(led, led->mpp_cfg->pwm_cfg, (int)blinking);
 #else
 		led_blink(led, led->mpp_cfg->pwm_cfg);
-#endif // IS_USE_ARIMA_BLINK
-/* [Arima5908][32708][JessicaTseng] [All][Main][LED][DMS]Porting R/G/B LED 20140103 end */
+#endif
 		break;
 	case QPNP_ID_RGB_RED:
 	case QPNP_ID_RGB_GREEN:
@@ -3540,13 +3525,15 @@ static int __devinit qpnp_leds_probe(struct spmi_device *spmi)
 			__qpnp_led_work(led, led->cdev.brightness);
 			if (led->turn_off_delay_ms > 0)
 				qpnp_led_turn_off(led);
+		} else
 /* [Arima5908][36428][JessicaTseng] [All][Main][LED][DMS]Turn off LED when rebooting 20140417 start */
-		} else {
+#ifdef CONFIG_SONY_FLAMINGO
+		{
 			led->cdev.brightness = LED_OFF;
 			if (led->id == QPNP_ID_LED_MPP)			
 				qpnp_led_turn_off(led);
 		}
-/* [Arima5908][36428][JessicaTseng] [All][Main][LED][DMS]Turn off LED when rebooting 20140417 end */
+#endif
 
 		parsed_leds++;
 	}

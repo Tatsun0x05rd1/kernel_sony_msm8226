@@ -1065,9 +1065,12 @@ static void msm_vfe40_axi_clear_wm_xbar_reg(
 }
 
 //[All][Main][Camera][35917] QCT Patch for AF and Throughput issue 20140409 S
-//#define MSM_ISP40_TOTAL_WM_UB 819
+#ifdef CONFIG_SONY_FLAMINGO
 #define MSM_ISP40_TOTAL_WM_UB 1140
-//[All][Main][Camera][35917] QCT Patch for AF and Throughput issue 20140409 E
+#else
+#define MSM_ISP40_TOTAL_WM_UB 819
+#endif
+
 static void msm_vfe40_cfg_axi_ub_equal_default(
 	struct vfe_device *vfe_dev)
 {

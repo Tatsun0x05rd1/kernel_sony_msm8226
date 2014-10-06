@@ -45,10 +45,7 @@
    their framework which is 0.1DegC. True resolution of 0.1DegC
    will result in the below table size to increase by 10 times */
 /*[Arima5911][34335][bozhi_lin] re-map VBAT_THM to temperature table for hw change 20140321 begin*/   
-#if ( (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226DS_PDP2) && defined(CONFIG_BSP_HW_SKU_8226DS) \
-   || (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226SS_PDP2) && defined(CONFIG_BSP_HW_SKU_8226SS) \
-   || (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926DS_PDP2) && defined(CONFIG_BSP_HW_SKU_8926DS) \
-   || (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926SS_PDP2) && defined(CONFIG_BSP_HW_SKU_8926SS) )
+#ifdef CONFIG_SONY_FLAMINGO
 static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{-400,	1332},
 	{-390,	1330},
@@ -304,7 +301,6 @@ static const struct qpnp_vadc_map_pt adcmap_btm_threshold[] = {
 	{790,	203}
 };
 #endif
-/*[Arima5911][34335][bozhi_lin] 20140321 end  */
 
 static const struct qpnp_vadc_map_pt adcmap_qrd_btm_threshold[] = {
 	{-200,	1540},
