@@ -1,7 +1,6 @@
 /*
  * Copyright (C) 2007 Google, Inc.
  * Copyright (c) 2007-2013, The Linux Foundation. All rights reserved.
- * Copyright (C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -34,12 +33,7 @@ static LIST_HEAD(clk_list);
 static DEFINE_SPINLOCK(clk_list_lock);
 
 static struct dentry *debugfs_base;
-
-#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-static u32 debug_suspend = 1;
-#else
 static u32 debug_suspend;
-#endif
 
 struct clk_table {
 	struct list_head node;

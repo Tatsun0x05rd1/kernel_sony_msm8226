@@ -1154,10 +1154,6 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 			goto Run;
 		} else if (dev->class->suspend) {
 			pm_dev_dbg(dev, state, "legacy class ");
-
-			#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-			print_symbol("[PM]class suspend: %s\n", (unsigned long)dev->class->suspend);
-			#endif
 			error = legacy_suspend(dev, state, dev->class->suspend);
 			goto End;
 		}

@@ -34,10 +34,6 @@
 #define CONFIG_LOGCAT_SIZE 256
 #endif
 
-#ifdef CONFIG_FEATURE_FIH_SW3_LAST_ALOG
-#include "mach/alog_ram_console.h" 
-#endif
-
 /*
  * struct logger_log - represents a specific log, such as 'main' or 'radio'
  *
@@ -465,13 +461,6 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	struct user_logger_entry_compat header_v1;
 	struct timespec now;
 	ssize_t ret = 0;
-#ifdef CONFIG_FEATURE_FIH_SW3_LAST_ALOG
-	LogType log_type = LOG_TYPE_NUM;
-	int overrun=0;
-	char *tag;
-	int need_print;
-	char sTag[6];
-#endif	
 
 	now = current_kernel_time();
 
@@ -497,55 +486,6 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	 */
 	fix_up_readers(log, sizeof(struct logger_entry) + header.len);
 
-#ifdef CONFIG_FEATURE_FIH_SW3_LAST_ALOG
-
-	/* Kernel log may also put into android log buffer, but we don't
-	 * want to see them in last_alog, so we need to wipe it out.
-	 */
-	/* This API is heavily dependent on a user space assumption
-	 * that the full log entry comprising 3 vectors will be passed
-	 * to it in the format:
-	 * (from user space logger file -
-	 * system/core/liblog/logd_write.c):
-	 *    vec[0].iov_base  = (unsigned char *) &prio;
-	 *    vec[0].iov_len    = 1;
-	 *    vec[1].iov_base   = (void *) tag;
-	 *    vec[1].iov_len    = strlen(tag) + 1;
-	 *    vec[2].iov_base   = (void *) msg;
-	 *    vec[2].iov_len    = strlen(msg) + 1;
-	 * Note: vec in userspace is "iov" here.
-	 * Since this driver supplies a function for aio_write, there
-	 * is no aio queueing or retry done. Once we are here we
-	 * consume all of what is passed to us, with or without error.
-	 * That means that no partial vector sets should ever be passed
-	 * in.
-	 */
-	tag = (iov+1)->iov_base; /* tag name */
-	if (tag == NULL)
-		need_print = 1;
-	else
-	{
-		if (copy_from_user(sTag, tag, 6))
-			need_print = 1;
-		else
-			need_print = strcmp(sTag,"klogd");
-	}
-	
-	if (need_print)
-	{
-		if (log == &log_main) 
-			log_type = LOG_TYPE_MAIN;
-		else if (log == &log_radio)
-			log_type = LOG_TYPE_RADIO;
-		else if (log == &log_events)
-			log_type = LOG_TYPE_EVENTS;
-		else
-			log_type = LOG_TYPE_SYSTEM;
-
-		overrun += alog_ram_console_write_log(log_type, NULL, (char *)&header_v1, (int)sizeof(struct user_logger_entry_compat)); //MTD-KERNEL-BH-last_alog-01*//MTD-KERNEL-BH-FixLastAlogForLoggerV2-00+
-	}
-#endif
-
 	do_write_log(log, &header, sizeof(struct logger_entry));
 
 	while (nr_segs-- > 0) {
@@ -557,12 +497,6 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 
 		/* write out this segment's payload */
 		nr = do_write_log_from_user(log, iov->iov_base, len);
-#ifdef CONFIG_FEATURE_FIH_SW3_LAST_ALOG
-		if (need_print)
-		{
-			overrun += alog_ram_console_write_log(log_type, iov->iov_base, NULL, len); //MTD-KERNEL-BH-last_alog-01*
-		}
-#endif
 		if (unlikely(nr < 0)) {
 			log->w_off = orig;
 			mutex_unlock(&log->mutex);
@@ -572,11 +506,6 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 		iov++;
 		ret += nr;
 	}
-
-#ifdef CONFIG_FEATURE_FIH_SW3_LAST_ALOG
-	if (overrun && need_print)
-		alog_ram_console_sync_time(log_type, SYNC_AFTER);
-#endif
 
 	mutex_unlock(&log->mutex);
 

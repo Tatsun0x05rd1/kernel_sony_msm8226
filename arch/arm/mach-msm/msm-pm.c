@@ -57,61 +57,7 @@
 
 #define MAX_BUF_SIZE  512
 
-#ifdef CONFIG_FIH_FEATURE_RPM_STATS_LOG
-#include "rpm_stats.h"
-
-extern void msm_rpmstats_get_stats_v2(struct msm_rpmstats_mode_data *rpm_stats);
-extern struct msm_rpmstats_mode_data rpmstats_enter;
-extern struct msm_rpmstats_mode_data rpmstats_exit;
-extern struct msm_rpmstats_mode_data rpmstats_suspend;
-
-void show_rpmstats(void)
-{
-	unsigned long xosd_msec_rem;
-	unsigned long vmin_msec_rem;
-		
-	rpmstats_suspend.xosd_count = rpmstats_exit.xosd_count - rpmstats_enter.xosd_count;
-	rpmstats_suspend.xosd_time_since_last_mode = rpmstats_exit.xosd_time_since_last_mode;
-	rpmstats_suspend.xosd_actual_last_sleep = rpmstats_exit.xosd_actual_last_sleep - rpmstats_enter.xosd_actual_last_sleep;
-	rpmstats_suspend.vmin_count = rpmstats_exit.vmin_count - rpmstats_enter.vmin_count;
-	rpmstats_suspend.vmin_time_since_last_mode = rpmstats_exit.vmin_time_since_last_mode;
-	rpmstats_suspend.vmin_actual_last_sleep = rpmstats_exit.vmin_actual_last_sleep - rpmstats_enter.vmin_actual_last_sleep;
-
-	xosd_msec_rem = do_div(rpmstats_suspend.xosd_actual_last_sleep, 1000);
-	vmin_msec_rem = do_div(rpmstats_suspend.vmin_actual_last_sleep, 1000);
-		
-	pr_err("[PM] XOSD(cnt:%u time:%llu.%lu elapse:%llu) VMIN(cnt:%u time:%llu.%lu elapse:%llu)\n",
-		rpmstats_suspend.xosd_count, rpmstats_suspend.xosd_actual_last_sleep, xosd_msec_rem, rpmstats_suspend.xosd_time_since_last_mode, 
-		rpmstats_suspend.vmin_count, rpmstats_suspend.vmin_actual_last_sleep, vmin_msec_rem, rpmstats_suspend.vmin_time_since_last_mode);
-}
-#endif
-
-#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-#include "clock.h"
-
-extern ktime_t ktime_get_in_suspend(void);
-void show_apss_wakeup_info(int64_t time)
-{
-	char tbuf[50];
-	unsigned tlen;
-	unsigned long long t;
-	unsigned long nanosec_rem;
-
-	t = time;
-	nanosec_rem = do_div(t, 1000000000);
-	tlen = snprintf(tbuf, sizeof(tbuf), "%llu.%03lu ",
-			t,
-			nanosec_rem / 1000000);
-				
-	pr_err("[PM] APSS PC:%s\n", tbuf);
-}
-#endif
-
-#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-static int msm_pm_debug_mask = 0x1201;
-#else
 static int msm_pm_debug_mask = 1;
-#endif
 module_param_named(
 	debug_mask, msm_pm_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP
 );
@@ -751,40 +697,8 @@ static enum msm_pm_time_stats_id msm_pm_power_collapse(bool from_idle)
 	if (cpu_online(cpu) && !msm_no_ramp_down_pc)
 		saved_acpuclk_rate = ramp_down_last_cpu(cpu);
 
-	#ifdef CONFIG_FIH_FEATURE_RPM_STATS_LOG
-	if (cpu == 0)
-	{
-		if (likely(from_idle))
-		{
-			if (unlikely(msm_pm_debug_mask & MSM_PM_DEBUG_RPM_IDLE_LOG))
-			msm_rpmstats_get_stats_v2(&rpmstats_enter);
-		}
-		else
-			msm_rpmstats_get_stats_v2(&rpmstats_enter);
-	}
-	#endif
-
 	collapsed = msm_pm_spm_power_collapse(cpu, from_idle, true);
 
-	#ifdef CONFIG_FIH_FEATURE_RPM_STATS_LOG
-	if (cpu == 0)
-	{
-		if (likely(from_idle))
-		{
-			if (unlikely(msm_pm_debug_mask & MSM_PM_DEBUG_RPM_IDLE_LOG))
-			{
-				msm_rpmstats_get_stats_v2(&rpmstats_exit);
-				show_rpmstats();
-			}
-		}
-		else
-		{
-			msm_rpmstats_get_stats_v2(&rpmstats_exit);
-			show_rpmstats();
-		}
-	}
-	#endif
-	
 	if (cpu_online(cpu) && !msm_no_ramp_down_pc)
 		ramp_up_first_cpu(cpu, saved_acpuclk_rate);
 
@@ -882,9 +796,6 @@ int msm_cpu_pm_enter_sleep(enum msm_pm_sleep_mode mode, bool from_idle)
 	int64_t time;
 	bool collapsed = 1;
 	int exit_stat = -1;
-	#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-	int64_t pc_time;
-	#endif
 
 	if (MSM_PM_DEBUG_IDLE & msm_pm_debug_mask)
 		pr_info("CPU%u: %s: mode %d\n",
@@ -893,36 +804,11 @@ int msm_cpu_pm_enter_sleep(enum msm_pm_sleep_mode mode, bool from_idle)
 		pr_info("CPU%u: %s mode:%d\n",
 			smp_processor_id(), __func__, mode);
 
-	#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-	pc_time = ktime_to_ns(ktime_get_in_suspend());
-	#endif
 	if (from_idle)
 		time = sched_clock();
 
 	if (execute[mode])
 		exit_stat = execute[mode](from_idle);
-
-	#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-	pc_time = ktime_to_ns(ktime_get_in_suspend()) - pc_time;
-
-	if (likely(from_idle))
-	{
-		if (unlikely(msm_pm_debug_mask & MSM_PM_DEBUG_IDLE))
-		{
-			if (smp_processor_id() == 0 && 
-				(exit_stat == MSM_PM_STAT_IDLE_POWER_COLLAPSE || 
-				 exit_stat == MSM_PM_STAT_IDLE_STANDALONE_POWER_COLLAPSE))		
-				 	show_apss_wakeup_info(pc_time);
-		}
-	}	
-	else
-	{
-		if (smp_processor_id() == 0 && 
-			(exit_stat == MSM_PM_STAT_IDLE_POWER_COLLAPSE || 
-			 exit_stat == MSM_PM_STAT_IDLE_STANDALONE_POWER_COLLAPSE))	
-			 	show_apss_wakeup_info(pc_time);
-	}
-	#endif
 
 	if (from_idle) {
 		time = sched_clock() - time;

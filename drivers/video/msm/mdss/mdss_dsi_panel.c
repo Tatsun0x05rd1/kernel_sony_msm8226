@@ -37,12 +37,8 @@ DEFINE_LED_TRIGGER(bl_led_trigger);
 #define TRULY_OTP_PANEL_ID    0x64
 #define INNOLUX_PANEL_ID    0x65
 #define INNOLUX_OTP_PANEL_ID    0x66
-
-#ifdef CONFIG_FIH_HR_MSLEEP
-#define MDSS_MSLEEP hr_msleep
-#else
 #define MDSS_MSLEEP msleep
-#endif
+
 static int mdss_dsi_parse_dcs_cmds(struct device_node *np,
 		struct dsi_panel_cmds *pcmds, char *cmd_key, char *link_key);
 

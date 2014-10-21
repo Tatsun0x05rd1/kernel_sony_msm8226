@@ -49,13 +49,6 @@ if FIH_CONFIG_GROUP
             help
                 Enable/Disable SEMC S1 boot.
 
-        config FIH_USER_DEBUG
-            bool "FIH_USER_DEBUG"
-            depends on FIH_PROJECT_SEAGULL_LTE
-            default n
-            help
-                set if build variant is user_debug
-				
 	config PN544_I2C_NFC
 		tristate "PN544 NFC driver"
 		depends on I2C
@@ -122,72 +115,7 @@ if FIH_CONFIG_GROUP
             help
              Support for PWM LED of FIH.
     # PERI-AH-LED-00+]
-    
-        # /*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-        config FIH_SUSPEND_RESUME_LOG
-            bool "FIH LOG about SUSPEND/RESUME"
-            depends on FIH_CONFIG_GROUP
-            default n
-            help
-                Enable suspend and resume log support
-				
-        #CORE-EL-sleep-func-00+[
-        config FIH_HR_MSLEEP
-            bool "FIH_HR_MSLEEP"
-            depends on FIH_CONFIG_GROUP
-            default y
-            help
-                Provide more efficient sleep function.
-        #CORE-EL-sleep-func-00+]
 
-        #/*CORE-SC-PMSWakelockInfo-00+[*/
-        config FIH_DUMP_WAKELOCK
-            bool "FIH DUMP WAKELOCK"
-            depends on FIH_CONFIG_GROUP
-            default n
-            help
-                Enable to dump wakelock if it active.  
-        #/*CORE-SC-PMSWakelockInfo-00+]*/
-
-        # FIH-KERNEL-HC-dynamically_disable_UART-00+[
-        config FIH_REMOVE_SERIAL_DYNAMICALLY
-            bool "turn off serial port dynamically"
-            default n
-            help
-                turn off serial port dynamically
-        # FIH-KERNEL-HC-dynamically_disable_UART-00+]
-
-        # FIH-KERNEL-HC-Force_Trigger_Panic-00+[
-        config FIH_FORCE_TRIGGER_PANIC
-            bool "Force trigger panic"
-            default n
-            help
-                Say Y here if you want to trigger panic 
-                by pressing power key more than 15s.
-        # FIH-KERNEL-HC-Force_Trigger_Panic-00+]
-
-        # FIH-SW3-KERNEL-TH-add_last_alog-00+[
-        config FEATURE_FIH_SW3_LAST_ALOG
-            bool "RAM console for last alog"
-            depends on FIH_CONFIG_GROUP
-            default n
-            help
-                Enable RAM console for last alog
-        # FIH-SW3-KERNEL-TH-add_last_alog-00+]
-		# FIH-SW3-KERNEL-TH-buildtype_bebug-00+]
-		config FEATURE_FIH_SW3_BUILDTYPE_DEBUG
-            bool "enable debug mode for printk"
-            default n
-            help
-                if build debug, printk will not lost log when resume
-		# FIH-SW3-KERNEL-TH-buildtype_bebug-00+]
-    	# CORE-BH-RPMStatsLog-00+[
-        config FIH_FEATURE_RPM_STATS_LOG
-            bool "FIH RPM STATS LOG"
-            default n
-            help
-             Support RPM Stats log.
-    	# CORE-BH-RPMStatsLog-00+]
     endmenu
     # --- FIH_PROJECT_SEAGULL_LTE}-------------------------------------------------- END
 
@@ -218,13 +146,6 @@ if FIH_CONFIG_GROUP
             help
                 Enable/Disable SEMC S1 boot.
 
-        config FIH_USER_DEBUG
-            bool "FIH_USER_DEBUG"
-            depends on FIH_PROJECT_SEAGULL_3G
-            default n
-            help
-                set if build variant is user_debug
-				
        config PN544_I2C_NFC
                tristate "PN544 NFC driver"
                depends on I2C
@@ -291,72 +212,7 @@ if FIH_CONFIG_GROUP
             help
              Support for PWM LED of FIH.
     # PERI-AH-LED-00+]
-    
-        # /*KERNEL-SC-SUSPEND_RESUME_WAKELOCK_LOG-01+[ */
-        config FIH_SUSPEND_RESUME_LOG
-            bool "FIH LOG about SUSPEND/RESUME"
-            depends on FIH_CONFIG_GROUP
-            default n
-            help
-                Enable suspend and resume log support
 
-        #CORE-EL-sleep-func-00+[
-        config FIH_HR_MSLEEP
-            bool "FIH_HR_MSLEEP"
-            depends on FIH_CONFIG_GROUP
-            default y
-            help
-                Provide more efficient sleep function.
-        #CORE-EL-sleep-func-00+]
-				
-        #/*CORE-SC-PMSWakelockInfo-00+[*/
-        config FIH_DUMP_WAKELOCK
-            bool "FIH DUMP WAKELOCK"
-            depends on FIH_CONFIG_GROUP
-            default n
-            help
-                Enable to dump wakelock if it active.  
-        #/*CORE-SC-PMSWakelockInfo-00+]*/
-
-        # FIH-KERNEL-HC-dynamically_disable_UART-00+[
-        config FIH_REMOVE_SERIAL_DYNAMICALLY
-            bool "turn off serial port dynamically"
-            default n
-            help
-                turn off serial port dynamically
-        # FIH-KERNEL-HC-dynamically_disable_UART-00+]
-
-        # FIH-KERNEL-HC-Force_Trigger_Panic-00+[
-        config FIH_FORCE_TRIGGER_PANIC
-            bool "Force trigger panic"
-            default n
-            help
-                Say Y here if you want to trigger panic 
-                by pressing power key more than 15s.
-        # FIH-KERNEL-HC-Force_Trigger_Panic-00+]
-
-        # FIH-SW3-KERNEL-TH-add_last_alog-00+[
-        config FEATURE_FIH_SW3_LAST_ALOG
-            bool "RAM console for last alog"
-            depends on FIH_CONFIG_GROUP
-            default n
-            help
-                Enable RAM console for last alog
-        # FIH-SW3-KERNEL-TH-add_last_alog-00+]
-               # FIH-SW3-KERNEL-TH-buildtype_bebug-00+]
-               config FEATURE_FIH_SW3_BUILDTYPE_DEBUG
-            bool "enable debug mode for printk"
-            default n
-            help
-                if build debug, printk will not lost log when resume
-               # FIH-SW3-KERNEL-TH-buildtype_bebug-00+]
-       # CORE-BH-RPMStatsLog-00+[
-        config FIH_FEATURE_RPM_STATS_LOG
-            bool "FIH RPM STATS LOG"
-            default n
-            help
-             Support RPM Stats log.
-       # CORE-BH-RPMStatsLog-00+]
     endmenu
     # --- FIH_PROJECT_SEAGULL_3G}-------------------------------------------------- END
 endif

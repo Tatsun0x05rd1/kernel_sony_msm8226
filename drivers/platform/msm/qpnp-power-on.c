@@ -94,14 +94,6 @@
 #define QPNP_KEY_STATUS_DELAY			msecs_to_jiffies(250)
 #define QPNP_PON_REV_B				0x01
 
-#ifdef CONFIG_FIH_FORCE_TRIGGER_PANIC
-#define FORCE_TRIGGER_PANIC_TIMEOUT_MS 30 * 1000
-
-struct delayed_work detect_release_work;
-extern unsigned int debug_force_trigger_panic_enable;
-static unsigned int has_delayed_work = 0;
-#endif
-
 static int is_warmboot = 0;
 
 enum pon_type {
@@ -420,26 +412,6 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	input_report_key(pon->pon_input, cfg->key_code,
 					(pon_rt_sts & pon_rt_bit));
 	input_sync(pon->pon_input);
-
-#ifdef CONFIG_FIH_FORCE_TRIGGER_PANIC
-
-	if (cfg->pon_type == PON_KPDPWR)
-	{
-		if ( (pon_rt_sts & pon_rt_bit) && debug_force_trigger_panic_enable) /* Power key down */
-		{
-			schedule_delayed_work(&detect_release_work, msecs_to_jiffies(FORCE_TRIGGER_PANIC_TIMEOUT_MS));
-			has_delayed_work = 1;
-			pr_info("%s : schedule_delayed_work\n", __func__);
-		}
-		else if (!(pon_rt_sts & pon_rt_bit) && has_delayed_work)
-		{
-			__cancel_delayed_work(&detect_release_work);
-			has_delayed_work = 0;
-			pr_info("%s : cancel_delayed_work_sync\n", __func__);
-		}
-	}
-
-#endif
 
 	return 0;
 }
@@ -1067,25 +1039,7 @@ free_input_dev:
 void * get_pwron_cause_virt_addr(void);
 void * get_hw_wd_virt_addr(void);
 
-#ifdef CONFIG_FIH_FORCE_TRIGGER_PANIC
-static void detect_release_request(struct work_struct *work)
-{
-	unsigned int *pwron_cause_ptr;
-	
-	pwron_cause_ptr = (unsigned int*) get_pwron_cause_virt_addr();
-	if (pwron_cause_ptr != NULL){
-		*pwron_cause_ptr |= MTD_PWR_ON_EVENT_FORCE_TRIGGER_PANIC;
-	}
-	pr_err("FORCE TRIGGER PANIC !!\n");
-	panic("force_trigger_panic");
-}
-#endif
-
 static unsigned int fih_power_on_cause; 
-
-#ifdef CONFIG_FIH_USER_DEBUG
-extern int spmi_dfs_readdata(u32 cnt, u32 addr);
-#endif
 
 void show_startup_reason(void)
 {
@@ -1138,10 +1092,6 @@ void fih_parse_power_on_cause (void)
 	printk(KERN_ERR "S1 boot - power on cause = 0x%08x \n", s1_poweron_reason);
 	printk(KERN_ERR "S1 boot - warmboot reason = 0x%08x \n", s1_warmboot_reason);
 #endif	
-
-#ifdef CONFIG_FIH_USER_DEBUG
-	spmi_dfs_readdata(0x10, 0x800);
-#endif
 
 	pwron_cause_ptr = (unsigned int*) get_pwron_cause_virt_addr();
 	hw_wd_ptr = (unsigned int*) get_hw_wd_virt_addr();
@@ -1211,9 +1161,6 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	int rc, sys_reset, index;
 	u8 pon_sts = 0, buf[2];
 	u16 poff_sts = 0;
-#ifdef CONFIG_FIH_FORCE_TRIGGER_PANIC
-	INIT_DELAYED_WORK(&detect_release_work, detect_release_request);
-#endif
 
 	pon = devm_kzalloc(&spmi->dev, sizeof(struct qpnp_pon),
 							GFP_KERNEL);

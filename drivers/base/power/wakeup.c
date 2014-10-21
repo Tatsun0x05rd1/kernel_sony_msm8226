@@ -4,7 +4,6 @@
  * Copyright (c) 2010 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
  *
  * This file is released under the GPLv2.
- * Copyright (C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  */
 
 #include <linux/device.h>
@@ -47,17 +46,6 @@ static void split_counters(unsigned int *cnt, unsigned int *inpr)
 static unsigned int saved_count;
 
 static DEFINE_SPINLOCK(events_lock);
-
-#ifdef CONFIG_FIH_DUMP_WAKELOCK
-static DEFINE_SPINLOCK(pms_list_lock);
-static LIST_HEAD(pms_locks);
-
-#define POLLING_DUMP_WAKELOCK_SECS	(45)
-#define POLLING_DUMP_WAKELOCK_1ST_SECS	(3)
-
-static void dump_wakelocks(unsigned long data);
-static DEFINE_TIMER(dump_wakelock_timer, dump_wakelocks, 0, 0);
-#endif
 
 static void pm_wakeup_timer_fn(unsigned long data);
 
@@ -686,142 +674,6 @@ bool pm_wakeup_pending(void)
 	return ret;
 }
 
- #ifdef CONFIG_FIH_DUMP_WAKELOCK
- void add_pms_wakelock_info(char *pid, char *tag) 
-{
-	unsigned long irqflags;
-	struct pms_wake_lock *lock;
-	int pid_len,tag_len;
-
-	if (!*pid) {
-		pr_err("[PMSWL]add_pms_wakelock_info: pid is empty\n");
-		return;
-	}
-	if (!*tag) {
-		pr_err("[PMSWL]add_pms_wakelock_info: tag is empty\n");
-		return;
-	}
-	
-	spin_lock_irqsave(&pms_list_lock, irqflags);	
-	lock = kzalloc(sizeof(*lock), GFP_ATOMIC);
-	if (!lock) {
-		pr_err("[PMSWL]no memory to allocate pms_lock size:%d\n",sizeof(*lock));
-		goto exit_add;
-	}
-	pid_len=strlen(pid)+1;
-	lock->pid = kzalloc(pid_len, GFP_ATOMIC);
-	if (!lock->pid) {
-		pr_err("[PMSWL]no memory to allocate pms_lock->pid size:%d\n", pid_len);
-		kfree(lock);
-		goto exit_add;
-	}
-	strncpy(lock->pid,pid,pid_len);
-	
-	tag_len=strlen(tag)+1;
-	lock->tag = kzalloc(tag_len, GFP_ATOMIC);
-	if (!lock->tag) {
-		pr_err("[PMSWL]no memory to allocate pms_lock->tag size:%d\n", tag_len);
-		kfree(lock->pid);
-		kfree(lock);
-		goto exit_add;
-	}	
-	strncpy(lock->tag,tag,tag_len);
-
-	list_add(&lock->link,&pms_locks);
-
-exit_add:	
-	spin_unlock_irqrestore(&pms_list_lock, irqflags);	
-}
- EXPORT_SYMBOL(add_pms_wakelock_info);
-
- void remove_pms_wakelock_info(void)
-{
-	unsigned long irqflags;
-	
-	struct pms_wake_lock *lock,*lock_temp;
-	
-	spin_lock_irqsave(&pms_list_lock, irqflags);
-	list_for_each_entry_safe(lock, lock_temp, &pms_locks, link) {
-			list_del(&lock->link);
-			kfree(lock->pid);
-			kfree(lock->tag);
-			kfree(lock);
-	}
-	spin_unlock_irqrestore(&pms_list_lock, irqflags);
-}
-EXPORT_SYMBOL(remove_pms_wakelock_info);
-
-void print_active_pms_locks(void)
- {
-	 struct pms_wake_lock *lock;
- 
-	 unsigned long irqflags;
- 
-	 spin_lock_irqsave(&pms_list_lock, irqflags);
-	 
-	 list_for_each_entry(lock, &pms_locks, link) {
-		 pr_info("[PMSWL]active PMS wakelock: %s %s\n", lock->pid, lock->tag);
-	 }
- 
-	 spin_unlock_irqrestore(&pms_list_lock, irqflags);
- }
-
-int print_active_wakeup_source_stats(struct wakeup_source *ws)
-{
-	unsigned long flags;
-	ktime_t total_time;
-	ktime_t max_time;
-	unsigned long active_count;
-	ktime_t active_time;
-	ktime_t prevent_sleep_time;
-	int ret = 0;
-
-	spin_lock_irqsave(&ws->lock, flags);
-
-	total_time = ws->total_time;
-	max_time = ws->max_time;
-	prevent_sleep_time = ws->prevent_sleep_time;
-	active_count = ws->active_count;
-	if (ws->active) {
-		ktime_t now = ktime_get();
-
-		active_time = ktime_sub(now, ws->last_time);
-
-		pr_info("[PM]active wake lock %s, active_time=%lld ms\n",
-			ws->name, 
-			ktime_to_ms(active_time));
-	}
-
-	spin_unlock_irqrestore(&ws->lock, flags);
-
-	return ret;
-}
-
- /* Caller must acquire the list_lock spinlock */
-void print_active_locks(void)
- {
-	struct wakeup_source *ws;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(ws, &wakeup_sources, entry)
-		print_active_wakeup_source_stats(ws);
-	rcu_read_unlock();
-
-	print_active_pms_locks();
-	
- }
-
- static void dump_wakelocks(unsigned long data)
-{
-	pr_info("[PM]--- dump_wakelocks ---\n");
-
-	print_active_locks();
-
-	mod_timer(&dump_wakelock_timer, jiffies + POLLING_DUMP_WAKELOCK_SECS*HZ);
-}
-
-#endif
-
 /**
  * pm_get_wakeup_count - Read the number of registered wakeup events.
  * @count: Address to store the value at.
@@ -908,21 +760,6 @@ void pm_wakep_autosleep_enabled(bool set)
 		spin_unlock_irq(&ws->lock);
 	}
 	rcu_read_unlock();
-
-	#ifdef CONFIG_FIH_DUMP_WAKELOCK
-	
-	if( set )
-	{
-		pr_info("[PM] add dump_wakelock_timer\n");
-		mod_timer(&dump_wakelock_timer, jiffies + POLLING_DUMP_WAKELOCK_1ST_SECS*HZ);
-	}
-	else
-	{
-		if (del_timer(&dump_wakelock_timer))
-			pr_info("[PM] del dump_wakelock_timer\n");
-	}
-	#endif
-
 }
 #endif /* CONFIG_PM_AUTOSLEEP */
 

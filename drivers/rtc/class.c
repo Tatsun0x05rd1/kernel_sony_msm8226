@@ -55,10 +55,6 @@ static int rtc_suspend(struct device *dev, pm_message_t mesg)
 	alog_ram_console_sync_time(LOG_TYPE_ALL, SYNC_BEFORE);
 #endif	
 
-#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
-    printk(KERN_INFO "[PM]rtc_suspend(): %s, dev_name = %s\n", rtc->name, dev_name(&rtc->dev));
-#endif
-
 	if (strcmp(dev_name(&rtc->dev), CONFIG_RTC_HCTOSYS_DEVICE) != 0)
 		return 0;
 
