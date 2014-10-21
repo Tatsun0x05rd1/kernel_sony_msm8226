@@ -2025,6 +2025,12 @@ static int mdss_mdp_parse_dt_misc(struct platform_device *pdev)
 		&data);
 	mdata->rot_block_size = (!rc ? data : 128);
 
+    /* 0002-msm-mdss-Dynamically-change-writeback-path-OT+{ */
+	rc = of_property_read_u32(pdev->dev.of_node,
+		"qcom,mdss-rotator-ot-limit", &data);
+	mdata->rotator_ot_limit = (!rc ? data : 0);
+    /* 0002-msm-mdss-Dynamically-change-writeback-path-OT+} */
+
 	mdata->has_bwc = of_property_read_bool(pdev->dev.of_node,
 					       "qcom,mdss-has-bwc");
 	mdata->has_decimation = of_property_read_bool(pdev->dev.of_node,

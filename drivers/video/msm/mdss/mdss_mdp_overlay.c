@@ -686,7 +686,7 @@ int mdss_mdp_overlay_get_buf(struct msm_fb_data_type *mfd,
 
 	if ((num_planes <= 0) || (num_planes > MAX_PLANES))
 		return -EINVAL;
-
+	mdss_bus_bandwidth_ctrl(1);
 	memset(data, 0, sizeof(*data));
 	for (i = 0; i < num_planes; i++) {
 		data->p[i].flags = flags;
@@ -700,7 +700,7 @@ int mdss_mdp_overlay_get_buf(struct msm_fb_data_type *mfd,
 			break;
 		}
 	}
-
+	mdss_bus_bandwidth_ctrl(0);
 	data->num_planes = i;
 
 	return rc;
@@ -709,9 +709,10 @@ int mdss_mdp_overlay_get_buf(struct msm_fb_data_type *mfd,
 int mdss_mdp_overlay_free_buf(struct mdss_mdp_data *data)
 {
 	int i;
+	mdss_bus_bandwidth_ctrl(1);
 	for (i = 0; i < data->num_planes && data->p[i].len; i++)
 		mdss_mdp_put_img(&data->p[i]);
-
+	mdss_bus_bandwidth_ctrl(0);
 	data->num_planes = 0;
 
 	return 0;
@@ -1100,7 +1101,7 @@ static int mdss_mdp_overlay_release(struct msm_fb_data_type *mfd, int ndx)
 	struct mdss_mdp_pipe *pipe;
 	struct mdss_overlay_private *mdp5_data = mfd_to_mdp5_data(mfd);
 	u32 pipe_ndx, unset_ndx = 0;
-	int i;
+	int i, destroy_pipe;
 
 	for (i = 0; unset_ndx != ndx && i < MDSS_MDP_MAX_SSPP; i++) {
 		pipe_ndx = BIT(i);
@@ -1111,16 +1112,22 @@ static int mdss_mdp_overlay_release(struct msm_fb_data_type *mfd, int ndx)
 				pr_warn("unknown pipe ndx=%x\n", pipe_ndx);
 				continue;
 			}
+
 			mutex_lock(&mfd->lock);
 			pipe->pid = 0;
+			destroy_pipe = pipe->play_cnt == 0;
+
 			if (!list_empty(&pipe->used_list)) {
 				list_del_init(&pipe->used_list);
-				list_add(&pipe->cleanup_list,
-					&mdp5_data->pipes_cleanup);
+				if (!destroy_pipe)
+					list_add(&pipe->cleanup_list,
+						&mdp5_data->pipes_cleanup);
 			}
 			mutex_unlock(&mfd->lock);
 			mdss_mdp_mixer_pipe_unstage(pipe);
 			mdss_mdp_pipe_unmap(pipe);
+			if (destroy_pipe)
+				mdss_mdp_pipe_destroy(pipe);
 		}
 	}
 	return 0;
@@ -2665,12 +2672,20 @@ static int mdss_mdp_overlay_splash_image(struct msm_fb_data_type *mfd,
 		return -EINVAL;
 	}
 
-	fbi = mfd->fbi;
-	image_len = SPLASH_IMAGE_WIDTH * SPLASH_IMAGE_HEIGHT * SPLASH_IMAGE_BPP;
+	rc = mdss_load_rle565_image(INIT_IMAGE_FILE,0);
 
-	if (SPLASH_IMAGE_WIDTH > fbi->var.xres ||
-			SPLASH_IMAGE_HEIGHT > fbi->var.yres ||
-			SPLASH_IMAGE_BPP > fbi->var.bits_per_pixel / 8 ||
+	if(rc)
+	{
+		pr_err("Invalid file\n");
+		return rc;
+	}
+
+	fbi = mfd->fbi;
+	image_len = SPLASH_RLE_TO_RGBA_IMAGE_WIDTH*SPLASH_RLE_TO_RGBA_IMAGE_HEIGHT*SPLASH_RLE_TO_RGBA_IMAGE_BPP;
+
+	if (SPLASH_RLE_TO_RGBA_IMAGE_WIDTH > fbi->var.xres ||
+			SPLASH_RLE_TO_RGBA_IMAGE_HEIGHT > fbi->var.yres ||
+			SPLASH_RLE_TO_RGBA_IMAGE_BPP > fbi->var.bits_per_pixel / 8 ||
 			image_len > fbi->fix.smem_len) {
 		pr_err("Invalid splash parameter configuration\n");
 		return -EINVAL;
@@ -2682,21 +2697,21 @@ static int mdss_mdp_overlay_splash_image(struct msm_fb_data_type *mfd,
 
 		memset(&req, 0, sizeof(struct mdp_overlay));
 		req.src.width = req.dst_rect.w = req.src_rect.w =
-				SPLASH_IMAGE_WIDTH;
+				SPLASH_RLE_TO_RGBA_IMAGE_WIDTH;
 		req.src.height = req.dst_rect.h = req.src_rect.h =
-				SPLASH_IMAGE_HEIGHT;
-		req.src.format = SPLASH_IMAGE_FORMAT;
+				SPLASH_RLE_TO_RGBA_IMAGE_HEIGHT;
+		req.src.format = MDP_RGBA_8888;
 		req.id = MSMFB_NEW_REQUEST;
 		req.z_order = MDSS_MDP_STAGE_0;
 		req.is_fg = 1;
 		req.alpha = 0xff;
 		req.transp_mask = MDP_TRANSP_NOP;
 		req.dst_rect.x =
-			(fbi->var.xres >> 1) - (SPLASH_IMAGE_WIDTH >> 1);
+			(fbi->var.xres >> 1) - (SPLASH_RLE_TO_RGBA_IMAGE_WIDTH >> 1);
 		req.dst_rect.y =
-			(fbi->var.yres >> 1) - (SPLASH_IMAGE_HEIGHT >> 1);
+			(fbi->var.yres >> 1) - (SPLASH_RLE_TO_RGBA_IMAGE_HEIGHT >> 1);
 
-		memcpy(fbi->screen_base, splash_bgr888_image, image_len);
+		//memcpy(fbi->screen_base, splash_bgr888_image, image_len);
 		mdss_mdp_overlay_pan_display(mfd, &req, image_len, pipe_ndx);
 
 	} else if (splash_event == MDP_REMOVE_SPLASH_OV) {

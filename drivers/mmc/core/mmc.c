@@ -580,6 +580,14 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 			ext_csd[EXT_CSD_MAX_PACKED_WRITES];
 		card->ext_csd.max_packed_reads =
 			ext_csd[EXT_CSD_MAX_PACKED_READS];
+
+		/*
+		 * Toshiba eMMC has problem on write packed command
+		 * and limit the number of max write packed command
+		 * to 2 recommended by Toshiba.
+		 */
+		if (card->cid.manfid == 0x11)
+			card->ext_csd.max_packed_writes = 2;
 	}
 
 out:

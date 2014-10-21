@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -692,7 +693,7 @@ static int32_t qpnp_vbat_sns_comp(int64_t *result,
 }
 
 int32_t qpnp_vbat_sns_comp_result(struct qpnp_vadc_chip *vadc,
-						int64_t *result)
+					int64_t *result, bool is_pon_ocv)
 {
 	struct qpnp_vadc_result die_temp_result;
 	int rc = 0;
@@ -708,7 +709,12 @@ int32_t qpnp_vbat_sns_comp_result(struct qpnp_vadc_chip *vadc,
 		return rc;
 	}
 
-	rc = qpnp_ocv_comp(result, vadc, die_temp_result.physical);
+	if (is_pon_ocv)
+		rc = qpnp_ocv_comp(result, vadc, die_temp_result.physical);
+	else
+		rc = qpnp_vbat_sns_comp(result, vadc,
+				die_temp_result.physical);
+
 	if (rc < 0)
 		pr_err("Error with vbat compensation\n");
 
@@ -1491,7 +1497,8 @@ static int __init qpnp_vadc_init(void)
 {
 	return spmi_driver_register(&qpnp_vadc_driver);
 }
-module_init(qpnp_vadc_init);
+//module_init(qpnp_vadc_init);
+postcore_initcall(qpnp_vadc_init); //BSP-REXER-HWID-00*
 
 static void __exit qpnp_vadc_exit(void)
 {

@@ -2792,9 +2792,11 @@ static int __devinit qpnp_get_config_flash(struct qpnp_led_data *led,
 
 error_get_torch_reg:
 	regulator_put(led->flash_cfg->torch_boost_reg);
+	pr_err("qpnp_get_config_flash: error_get_torch_reg\n");
 
 error_get_flash_reg:
 	regulator_put(led->flash_cfg->flash_boost_reg);
+	pr_err("qpnp_get_config_flash: error_get_flash_reg\n");
 	return rc;
 
 }

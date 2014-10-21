@@ -5,6 +5,8 @@
  *
  *		Implementation of the Transmission Control Protocol(TCP).
  *
+ * Copyright(C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
+ *
  * Authors:	Ross Biro
  *		Fred N. van Kempen, <waltje@uWalt.NL.Mugnet.ORG>
  *		Mark Evans, <evansmp@uhura.aston.ac.uk>
@@ -3442,7 +3444,7 @@ restart:
 			bh_unlock_sock(sk);
 			local_bh_enable();
 			sock_put(sk);
-
+			
 			goto restart;
 		}
 		spin_unlock_bh(lock);

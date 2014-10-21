@@ -462,7 +462,7 @@ static void mdss_mdp_video_underrun_intr_done(void *arg)
 		return;
 
 	ctl->underrun_cnt++;
-	pr_debug("display underrun detected for ctl=%d count=%d\n", ctl->num,
+	pr_err("display underrun detected for ctl=%d count=%d\n", ctl->num,
 			ctl->underrun_cnt);
 }
 

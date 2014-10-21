@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright(C) 2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -60,6 +61,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 		goto error;
 	}
 
+	printk("[DISPLAY]%s: + en %d\n", __func__, enable);
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 	pr_debug("%s: enable=%d\n", __func__, enable);
@@ -73,6 +75,9 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 				__func__, ret);
 			goto error;
 		}
+		/* MM-KW-DISPLAY-panel-00+{ */
+		mdss_dsi_panel_reset(pdata, 0);
+		/* MM-KW-DISPLAY-panel-00-} */
 
 		if (pdata->panel_info.panel_power_on == 0)
 			mdss_dsi_panel_reset(pdata, 1);
@@ -89,6 +94,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 				__func__, ret);
 		}
 	}
+	printk("[DISPLAY]%s: - ret %d\n", __func__, ret);
 error:
 	return ret;
 }
@@ -290,6 +296,7 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata)
 	int ret = 0;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_panel_info *panel_info = NULL;
+	printk("[DISPLAY]%s: +\n", __func__);
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -341,6 +348,7 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata)
 	    && (panel_info->dfps_update == DFPS_SUSPEND_RESUME_MODE)
 	    && (panel_info->new_fps != panel_info->mipi.frame_rate))
 		panel_info->mipi.frame_rate = panel_info->new_fps;
+	printk("[DISPLAY]%s: -\n", __func__);
 
 	pr_debug("%s-:\n", __func__);
 
@@ -358,6 +366,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	u32 dummy_xres, dummy_yres;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	u32 hsync_period, vsync_period;
+	printk("[DISPLAY]%s: +\n", __func__);
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -376,6 +385,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 				__func__, ctrl_pdata, ctrl_pdata->ndx);
 
 	pinfo = &pdata->panel_info;
+	/* MM-KW-DISPLAY-panel-01+{ */
 
 	ret = msm_dss_enable_vreg(ctrl_pdata->power_data.vreg_config,
 				ctrl_pdata->power_data.num_vreg, 1);
@@ -385,9 +395,9 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	}
 
 	pdata->panel_info.panel_power_on = 1;
-
-	if (!pdata->panel_info.mipi.lp11_init)
-		mdss_dsi_panel_reset(pdata, 1);
+	/*if (!pdata->panel_info.mipi.lp11_init)
+		mdss_dsi_panel_reset(pdata, 1);*/
+	/* MM-KW-DISPLAY-panel-01-} */
 
 	ret = mdss_dsi_enable_bus_clocks(ctrl_pdata);
 	if (ret) {
@@ -494,8 +504,19 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 		wmb();
 	}
 
+	/* MM-KW-DISPLAY-panel-00+{ */
+	if (pdata->panel_info.panel_power_on)
+	{
+	/*Seup GPIO state from reset low state to active state*/
+		mdss_dsi_panel_reset(pdata, 0);
+		mdss_dsi_panel_reset(pdata, 1);
+	}
+	/* MM-KW-DISPLAY-panel-00-} */
+
 	if (pdata->panel_info.type == MIPI_CMD_PANEL)
 		mdss_dsi_clk_ctrl(ctrl_pdata, 0);
+
+	printk("[DISPLAY]%s: -\n", __func__);
 
 	pr_debug("%s-:\n", __func__);
 	return 0;
@@ -1217,7 +1238,7 @@ int dsi_panel_device_register(struct device_node *pan_node,
 
 	ctrl_pdata->disp_en_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
 		"qcom,platform-enable-gpio", 0);
-
+	/* MM-KW-DISPLAY-panel-00+{ */
 	if (!gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 		pr_err("%s:%d, Disp_en gpio not specified\n",
 						__func__, __LINE__);
@@ -1230,15 +1251,60 @@ int dsi_panel_device_register(struct device_node *pan_node,
 			return -ENODEV;
 		}
 	}
+	ctrl_pdata->disp_p5_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
+		"qcom,platform-p5-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->disp_p5_gpio)) {
+		printk("%s:%d, Disp_p5 gpio not specified\n",
+						__func__, __LINE__);
+	} else {
+		rc = gpio_request(ctrl_pdata->disp_p5_gpio, "disp_p5");
+		if (rc) {
+			printk("request p5 gpio failed, rc=%d\n",
+				   rc);
+			gpio_free(ctrl_pdata->disp_p5_gpio);
+			return -ENODEV;
+		}
+		rc = gpio_tlmm_config(GPIO_CFG(
+				ctrl_pdata->disp_p5_gpio, 0,
+				GPIO_CFG_OUTPUT,
+				GPIO_CFG_PULL_DOWN,
+				GPIO_CFG_2MA),
+				GPIO_CFG_ENABLE);
+		if (rc)
+			printk("[DISPLAY]%s: gpio %d fail, rc %d\n", __func__, ctrl_pdata->disp_p5_gpio, rc);
+	}
 
-	if (pinfo->type == MIPI_CMD_PANEL) {
+	ctrl_pdata->disp_n5_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
+		"qcom,platform-n5-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->disp_n5_gpio)) {
+		printk("%s:%d, Disp_n5 gpio not specified\n",
+						__func__, __LINE__);
+	} else {
+		rc = gpio_request(ctrl_pdata->disp_n5_gpio, "disp_n5");
+		if (rc) {
+			printk("request n5 gpio failed, rc=%d\n",
+				   rc);
+			gpio_free(ctrl_pdata->disp_n5_gpio);
+			return -ENODEV;
+		}
+		rc = gpio_tlmm_config(GPIO_CFG(
+				ctrl_pdata->disp_n5_gpio, 0,
+				GPIO_CFG_OUTPUT,
+				GPIO_CFG_PULL_DOWN,
+				GPIO_CFG_2MA),
+				GPIO_CFG_ENABLE);
+		if (rc)
+			printk("[DISPLAY]%s: gpio %d fail, rc %d\n", __func__, ctrl_pdata->disp_n5_gpio, rc);
+	}
+
+//	if (pinfo->type == MIPI_CMD_PANEL) {
 		ctrl_pdata->disp_te_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
 						"qcom,platform-te-gpio", 0);
 		if (!gpio_is_valid(ctrl_pdata->disp_te_gpio)) {
 			pr_err("%s:%d, Disp_te gpio not specified\n",
 						__func__, __LINE__);
 		}
-	}
+//	}
 
 	if (gpio_is_valid(ctrl_pdata->disp_te_gpio) &&
 					pinfo->type == MIPI_CMD_PANEL) {

@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ * Copyright(C) 2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -249,6 +250,10 @@ struct mdss_dsi_ctrl_pdata {
 	int irq_cnt;
 	int mdss_dsi_clk_on;
 	int rst_gpio;
+	/* MM-KW-display-00+{ */
+	int disp_p5_gpio;
+	int disp_n5_gpio;
+	/* MM-KW-display-00-} */
 	int disp_en_gpio;
 	int disp_te_gpio;
 	int mode_gpio;
@@ -297,7 +302,7 @@ int mdss_dsi_cmds_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 		struct dsi_cmd_desc *cmds, int cnt);
 
 int mdss_dsi_cmds_rx(struct mdss_dsi_ctrl_pdata *ctrl,
-			struct dsi_cmd_desc *cmds, int rlen);
+			struct dsi_cmd_desc *cmds, int rlen, u32 rx_flags);
 
 void mdss_dsi_host_init(struct mipi_panel_info *pinfo,
 				struct mdss_panel_data *pdata);
@@ -344,4 +349,5 @@ int mdss_dsi_bta_status_check(struct mdss_dsi_ctrl_pdata *ctrl);
 int mdss_dsi_panel_init(struct device_node *node,
 		struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 		bool cmd_cfg_cont_splash);
+unsigned char mdss_manufacture_id_read(void);
 #endif /* MDSS_DSI_H */

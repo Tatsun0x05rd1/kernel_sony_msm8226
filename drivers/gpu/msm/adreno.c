@@ -272,7 +272,7 @@ static void adreno_input_work(struct work_struct *work)
 			struct adreno_device, input_work);
 	struct kgsl_device *device = &adreno_dev->dev;
 
-	mutex_lock(&device->mutex);
+	kgsl_mutex_lock(&device->mutex, &device->mutex_owner);
 
 	device->flags |= KGSL_FLAG_WAKE_ON_TOUCH;
 
@@ -290,7 +290,7 @@ static void adreno_input_work(struct work_struct *work)
 	 */
 	mod_timer(&device->idle_timer,
 		jiffies + msecs_to_jiffies(_wake_timeout));
-	mutex_unlock(&device->mutex);
+	kgsl_mutex_unlock(&device->mutex, &device->mutex_owner);
 }
 
 /*
@@ -2050,6 +2050,7 @@ static int _adreno_start(struct adreno_device *adreno_dev)
 	adreno_dispatcher_start(device);
 
 	device->reset_counter++;
+	set_bit(ADRENO_DEVICE_STARTED, &adreno_dev->priv);
 
 	set_bit(ADRENO_DEVICE_STARTED, &adreno_dev->priv);
 
@@ -2089,7 +2090,7 @@ static void adreno_start_work(struct work_struct *work)
 	/* Nice ourselves to be higher priority but not too high priority */
 	set_user_nice(current, _wake_nice);
 
-	mutex_lock(&device->mutex);
+	kgsl_mutex_lock(&device->mutex, &device->mutex_owner);
 	/*
 	 *  If adreno start is already called, no need to call it again
 	 *  it can lead to unpredictable behavior if we try to start
@@ -2105,11 +2106,12 @@ static void adreno_start_work(struct work_struct *work)
 	 *  5) thread 1 gets scheduled on high priority wq and executes
 	 *     adreno_start again. This leads to unpredictable behavior.
 	 */
+
 	if (!test_bit(ADRENO_DEVICE_STARTED, &adreno_dev->priv))
 		_status = _adreno_start(adreno_dev);
 	else
 		_status = 0;
-	mutex_unlock(&device->mutex);
+	kgsl_mutex_unlock(&device->mutex, &device->mutex_owner);
 }
 
 /**
@@ -2134,9 +2136,9 @@ static int adreno_start(struct kgsl_device *device, int priority)
 	 * higher priority work queue and wait for it to finish
 	 */
 	queue_work(adreno_wq, &adreno_dev->start_work);
-	mutex_unlock(&device->mutex);
+	kgsl_mutex_unlock(&device->mutex, &device->mutex_owner);
 	flush_work(&adreno_dev->start_work);
-	mutex_lock(&device->mutex);
+	kgsl_mutex_lock(&device->mutex, &device->mutex_owner);
 
 	return _status;
 }
@@ -2168,6 +2170,7 @@ static int adreno_stop(struct kgsl_device *device)
 	kgsl_pwrctrl_disable(device);
 
 	kgsl_cffdump_close(device);
+	clear_bit(ADRENO_DEVICE_STARTED, &adreno_dev->priv);
 
 	clear_bit(ADRENO_DEVICE_STARTED, &adreno_dev->priv);
 
@@ -2336,15 +2339,33 @@ static int _ft_pagefault_policy_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct adreno_device *adreno_dev = _get_adreno_dev(dev);
-	int ret;
+	int ret = 0;
+	unsigned int policy = 0;
 	if (adreno_dev == NULL)
 		return 0;
 
 	mutex_lock(&adreno_dev->dev.mutex);
-	ret = _ft_sysfs_store(buf, count, &adreno_dev->ft_pf_policy);
+
+	/* MMU option changed call function to reset MMU options */
+	if (count != _ft_sysfs_store(buf, count, &policy))
+		ret = -EINVAL;
+
+	if (!ret) {
+		policy &= (KGSL_FT_PAGEFAULT_INT_ENABLE |
+				KGSL_FT_PAGEFAULT_GPUHALT_ENABLE |
+				KGSL_FT_PAGEFAULT_LOG_ONE_PER_PAGE |
+				KGSL_FT_PAGEFAULT_LOG_ONE_PER_INT);
+		ret = kgsl_mmu_set_pagefault_policy(&(adreno_dev->dev.mmu),
+				adreno_dev->ft_pf_policy);
+		if (!ret)
+			adreno_dev->ft_pf_policy = policy;
+	}
 	mutex_unlock(&adreno_dev->dev.mutex);
 
-	return ret;
+	if (!ret)
+		return count;
+	else
+		return 0;
 }
 
 /**
@@ -2692,7 +2713,7 @@ static int adreno_setproperty(struct kgsl_device *device,
  * Return true if the RBBM status register for the GPU type indicates that the
  * hardware is idle
  */
-static bool adreno_hw_isidle(struct kgsl_device *device)
+bool adreno_hw_isidle(struct kgsl_device *device)
 {
 	unsigned int reg_rbbm_status;
 	struct adreno_device *adreno_dev = ADRENO_DEVICE(device);
@@ -2804,6 +2825,12 @@ bool adreno_isidle(struct kgsl_device *device)
 		return true;
 
 	rptr = adreno_get_rptr(&adreno_dev->ringbuffer);
+
+	/*
+	 * wptr is updated when we add commands to ringbuffer, add a barrier
+	 * to make sure updated wptr is compared to rptr
+	 */
+	smp_mb();
 
 	if (rptr == adreno_dev->ringbuffer.wptr)
 		return adreno_hw_isidle(device);

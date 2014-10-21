@@ -474,6 +474,7 @@ int mdss_mdp_put_img(struct mdss_mdp_img_data *data)
 				domain = MDSS_IOMMU_DOMAIN_SECURE;
 			else
 				domain = MDSS_IOMMU_DOMAIN_UNSECURE;
+
 			ion_unmap_iommu(iclient, data->srcp_ihdl,
 					mdss_get_iommu_domain(domain), 0);
 

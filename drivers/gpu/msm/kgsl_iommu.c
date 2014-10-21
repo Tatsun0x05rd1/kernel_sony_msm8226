@@ -639,16 +639,18 @@ static int kgsl_iommu_pt_equal(struct kgsl_mmu *mmu,
 				phys_addr_t pt_base)
 {
 	struct kgsl_iommu_pt *iommu_pt = pt ? pt->priv : NULL;
-	phys_addr_t domain_ptbase = iommu_pt ?
-				iommu_get_pt_base_addr(iommu_pt->domain) : 0;
+	phys_addr_t domain_ptbase;
 
-	/* Only compare the valid address bits of the pt_base */
-	domain_ptbase &= KGSL_IOMMU_CTX_TTBR0_ADDR_MASK;
+	if (iommu_pt == NULL)
+		return 0;
+
+	domain_ptbase = iommu_get_pt_base_addr(iommu_pt->domain)
+			& KGSL_IOMMU_CTX_TTBR0_ADDR_MASK;
 
 	pt_base &= KGSL_IOMMU_CTX_TTBR0_ADDR_MASK;
 
-	return domain_ptbase && pt_base &&
-		(domain_ptbase == pt_base);
+	return (domain_ptbase == pt_base);
+
 }
 
 /*
@@ -1770,16 +1772,8 @@ kgsl_iommu_unmap(struct kgsl_pagetable *pt,
 		return ret;
 	}
 
-	/*
-	 * Check to see if the current thread already holds the device mutex.
-	 * If it does not, then take the device mutex which is required for
-	 * flushing the tlb
-	 */
-	if (!mutex_is_locked(&device->mutex) ||
-		device->mutex.owner != current) {
-		mutex_lock(&device->mutex);
+	if (!kgsl_mutex_lock(&device->mutex, &device->mutex_owner))
 		lock_taken = 1;
-	}
 
 	/*
 	 * Flush the tlb only if the iommu device is attached and the pagetable
@@ -1792,7 +1786,7 @@ kgsl_iommu_unmap(struct kgsl_pagetable *pt,
 		kgsl_iommu_default_setstate(pt->mmu, KGSL_MMUFLAGS_TLBFLUSH);
 
 	if (lock_taken)
-		mutex_unlock(&device->mutex);
+		kgsl_mutex_unlock(&device->mutex, &device->mutex_owner);
 
 	return ret;
 }
@@ -1803,10 +1797,13 @@ kgsl_iommu_map(struct kgsl_pagetable *pt,
 			unsigned int protflags,
 			unsigned int *tlb_flags)
 {
-	int ret;
+	int ret, lock_taken = 0;
 	unsigned int iommu_virt_addr;
 	struct kgsl_iommu_pt *iommu_pt = pt->priv;
 	int size = memdesc->size;
+	struct kgsl_device *device = pt->mmu->device;
+	struct kgsl_iommu *iommu = pt->mmu->priv;
+
 
 	BUG_ON(NULL == iommu_pt);
 
@@ -1834,6 +1831,31 @@ kgsl_iommu_map(struct kgsl_pagetable *pt,
 					  size);
 		}
 	}
+
+	/*
+	 * Check to see if the current thread already holds the device mutex.
+	 * If it does not, then take the device mutex which is required for
+	 * flushing the tlb
+	 */
+	if (!mutex_is_locked(&device->mutex) ||
+		device->mutex.owner != current) {
+		mutex_lock(&device->mutex);
+		lock_taken = 1;
+	}
+
+	/*
+	 * Flush the tlb only if the iommu device is attached and the pagetable
+	 * hasn't been switched yet
+	 */
+	if (kgsl_mmu_is_perprocess(pt->mmu) &&
+		iommu->iommu_units[0].dev[KGSL_IOMMU_CONTEXT_USER].attached &&
+		kgsl_iommu_pt_equal(pt->mmu, pt,
+		kgsl_iommu_get_current_ptbase(pt->mmu)))
+		kgsl_iommu_default_setstate(pt->mmu, KGSL_MMUFLAGS_TLBFLUSH);
+
+	if (lock_taken)
+		mutex_unlock(&device->mutex);
+
 	return ret;
 }
 
@@ -2103,6 +2125,72 @@ static int kgsl_iommu_get_num_iommu_units(struct kgsl_mmu *mmu)
 	return iommu->unit_count;
 }
 
+/*
+ * kgsl_iommu_set_pf_policy() - Set the pagefault policy for IOMMU
+ * @mmu: Pointer to mmu structure
+ * @pf_policy: The pagefault polict to set
+ *
+ * Check if the new policy indicated by pf_policy is same as current
+ * policy, if same then return else set the policy
+ */
+static int kgsl_iommu_set_pf_policy(struct kgsl_mmu *mmu,
+				unsigned int pf_policy)
+{
+	int i, j;
+	struct kgsl_iommu *iommu = mmu->priv;
+	struct adreno_device *adreno_dev = ADRENO_DEVICE(mmu->device);
+	int ret = 0;
+	unsigned int sctlr_val;
+
+	if ((adreno_dev->ft_pf_policy & KGSL_FT_PAGEFAULT_GPUHALT_ENABLE) ==
+		(pf_policy & KGSL_FT_PAGEFAULT_GPUHALT_ENABLE))
+		return ret;
+	if (msm_soc_version_supports_iommu_v0())
+		return ret;
+
+	ret = kgsl_iommu_enable_clk(mmu, KGSL_IOMMU_CONTEXT_USER);
+
+	if (ret) {
+		KGSL_DRV_ERR(mmu->device, "Failed to enable iommu clocks\n");
+		return ret;
+	}
+	ret = kgsl_iommu_enable_clk(mmu, KGSL_IOMMU_CONTEXT_PRIV);
+
+	if (ret) {
+		KGSL_DRV_ERR(mmu->device, "Failed to enable iommu clocks\n");
+		kgsl_iommu_disable_clk_on_ts(mmu, 0, false);
+		return ret;
+	}
+	/* Need to idle device before changing options */
+	ret = mmu->device->ftbl->idle(mmu->device);
+	if (ret) {
+		kgsl_iommu_disable_clk_on_ts(mmu, 0, false);
+		return ret;
+	}
+
+	for (i = 0; i < iommu->unit_count; i++) {
+		struct kgsl_iommu_unit *iommu_unit = &iommu->iommu_units[i];
+		for (j = 0; j < iommu_unit->dev_count; j++) {
+			sctlr_val = KGSL_IOMMU_GET_CTX_REG(iommu,
+					iommu_unit,
+					iommu_unit->dev[j].ctx_id,
+					SCTLR);
+			if (pf_policy & KGSL_FT_PAGEFAULT_GPUHALT_ENABLE)
+				sctlr_val &= ~(0x1 <<
+					KGSL_IOMMU_SCTLR_HUPCF_SHIFT);
+			else
+				sctlr_val |= (0x1 <<
+					KGSL_IOMMU_SCTLR_HUPCF_SHIFT);
+			KGSL_IOMMU_SET_CTX_REG(iommu,
+					iommu_unit,
+					iommu_unit->dev[j].ctx_id,
+					SCTLR, sctlr_val);
+		}
+	}
+	kgsl_iommu_disable_clk_on_ts(mmu, 0, false);
+	return ret;
+}
+
 struct kgsl_mmu_ops iommu_ops = {
 	.mmu_init = kgsl_iommu_init,
 	.mmu_close = kgsl_iommu_close,
@@ -2128,6 +2216,7 @@ struct kgsl_mmu_ops iommu_ops = {
 	.mmu_cleanup_pt = NULL,
 	.mmu_sync_lock = kgsl_iommu_sync_lock,
 	.mmu_sync_unlock = kgsl_iommu_sync_unlock,
+	.mmu_set_pf_policy = kgsl_iommu_set_pf_policy,
 };
 
 struct kgsl_mmu_pt_ops iommu_pt_ops = {
