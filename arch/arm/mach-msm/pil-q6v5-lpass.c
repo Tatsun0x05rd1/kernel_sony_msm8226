@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -36,6 +37,10 @@
 #include "pil-q6v5.h"
 #include "scm-pas.h"
 #include "sysmon.h"
+
+#include <linux/fih_sw_info.h>
+extern void write_pwron_cause (int pwron_cause);
+
 
 #define QDSP6SS_RST_EVB			0x010
 #define PROXY_TIMEOUT_MS		10000
@@ -242,6 +247,11 @@ static void adsp_log_failure_reason(void)
 
 	reason = smem_get_entry(SMEM_SSR_REASON_LPASS0, &size);
 
+	if (!reason)
+		log_ss_failure_reason("adsp", 0,  "unknown, smem_get_entry failed");
+	else if (reason[0] == '\0') 
+		log_ss_failure_reason("adsp", 0,  "unknown, init value found");
+			
 	if (!reason) {
 		pr_err("ADSP subsystem failure reason: (unknown, smem_get_entry failed).");
 		return;
@@ -251,6 +261,8 @@ static void adsp_log_failure_reason(void)
 		pr_err("ADSP subsystem failure reason: (unknown, init value found)");
 		return;
 	}
+
+	log_ss_failure_reason("adsp", size,  buffer);
 
 	size = min(size, sizeof(buffer) - 1);
 	memcpy(buffer, reason, size);
@@ -283,6 +295,9 @@ static irqreturn_t adsp_err_fatal_intr_handler (int irq, void *dev_id)
 	 */
 	if (drv->crash_shutdown)
 		return IRQ_HANDLED;
+
+	pr_err("ADSP Fatal Error. Let's note!\n");
+	write_pwron_cause(MODEM_FATAL_ERR);
 
 	pr_err("Fatal error on the ADSP!\n");
 	restart_adsp(drv);
@@ -377,6 +392,9 @@ static void adsp_crash_shutdown(const struct subsys_desc *subsys)
 static irqreturn_t adsp_wdog_bite_irq(int irq, void *dev_id)
 {
 	struct lpass_data *drv = subsys_to_drv(dev_id);
+
+	pr_err("ADSP WDOG timeout. Let's note! %d\n", irq);
+	write_pwron_cause(MODEM_SW_WDOG_EXPIRED);
 
 	schedule_work(&drv->work);
 	return IRQ_HANDLED;

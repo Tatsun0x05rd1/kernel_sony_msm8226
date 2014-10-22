@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,6 +32,8 @@
 #include "vidc_hfi_io.h"
 #include "msm_vidc_debug.h"
 #include <linux/iopoll.h>
+
+#include <linux/fih_sw_info.h> 
 
 #define FIRMWARE_SIZE			0X00A00000
 #define REG_ADDR_OFFSET_BITMASK	0x000FFFFF
@@ -2578,12 +2581,16 @@ static int venus_hfi_try_clk_gating(struct venus_hfi_device *device)
 	mutex_unlock(&device->write_lock);
 	return rc;
 }
+
+extern void venus_log_failure_reason(char* err_str1, char*err_str2);
+
 static void venus_hfi_process_msg_event_notify(
 	struct venus_hfi_device *device, void *packet)
 {
 	struct hfi_sfr_struct *vsfr = NULL;
 	struct hfi_msg_event_notify_packet *event_pkt;
 	struct vidc_hal_msg_pkt_hdr *msg_hdr;
+	char* err_str = "N/A";
 
 	msg_hdr = (struct vidc_hal_msg_pkt_hdr *)packet;
 	event_pkt =
@@ -2592,9 +2599,12 @@ static void venus_hfi_process_msg_event_notify(
 		HFI_EVENT_SYS_ERROR) {
 		vsfr = (struct hfi_sfr_struct *)
 				device->sfr.align_virtual_addr;
-		if (vsfr)
+		if (vsfr) {
 			dprintk(VIDC_ERR, "SFR Message from FW : %s",
 				vsfr->rg_data);
+			err_str = vsfr->rg_data;
+		}
+		venus_log_failure_reason("err:", err_str);
 	}
 }
 static void venus_hfi_response_handler(struct venus_hfi_device *device)
@@ -2602,6 +2612,8 @@ static void venus_hfi_response_handler(struct venus_hfi_device *device)
 	u8 packet[VIDC_IFACEQ_MED_PKT_SIZE];
 	u32 rc = 0;
 	struct hfi_sfr_struct *vsfr = NULL;
+	char* err_str = "N/A";
+
 	dprintk(VIDC_INFO, "#####venus_hfi_response_handler#####\n");
 	if (device) {
 		if ((device->intr_status &
@@ -2610,10 +2622,14 @@ static void venus_hfi_response_handler(struct venus_hfi_device *device)
 				__func__);
 			vsfr = (struct hfi_sfr_struct *)
 					device->sfr.align_virtual_addr;
-			if (vsfr)
+			if (vsfr) {
 				dprintk(VIDC_ERR,
 					"SFR Message from FW : %s",
 						vsfr->rg_data);
+				err_str = vsfr->rg_data;
+			}
+			venus_log_failure_reason("WD timeout:", err_str);
+
 			venus_hfi_process_sys_watchdog_timeout(device);
 		}
 

@@ -17,6 +17,9 @@
 #include "msm_actuator.h"
 #include "msm_cci.h"
 
+#define OMP_IMX134 0x0A
+extern int g_MainCamModuleId;
+
 DEFINE_MSM_MUTEX(msm_actuator_mutex);
 
 /*#define MSM_ACUTUATOR_DEBUG*/
@@ -109,7 +112,7 @@ static void msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 					i2c_byte2 = (value & 0xFF00) >> 8;
 				}
 			} else {
-				i2c_byte1 = (value & 0xFF00) >> 8;
+				i2c_byte1 = ((value & 0x0300) >> 8) | 0xC0;
 				i2c_byte2 = value & 0xFF;
 			}
 		} else {
@@ -579,7 +582,11 @@ static int32_t msm_actuator_config(struct msm_actuator_ctrl_t *a_ctrl,
 	switch (cdata->cfgtype) {
 	case CFG_GET_ACTUATOR_INFO:
 		cdata->is_af_supported = 1;
-		cdata->cfg.cam_name = a_ctrl->cam_name;
+		if (g_MainCamModuleId == OMP_IMX134) {
+			cdata->cfg.cam_name = 7;/* ACTUATOR_MAIN_CAM_7 */
+		} else {
+			cdata->cfg.cam_name = a_ctrl->cam_name;
+		}
 		break;
 
 	case CFG_SET_ACTUATOR_INFO:

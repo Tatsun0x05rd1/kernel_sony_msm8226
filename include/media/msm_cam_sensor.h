@@ -49,6 +49,11 @@
 #define MAX_AF_ITERATIONS 3
 #define MAX_NUMBER_OF_STEPS 47
 
+#define SONY_IMX134_LSC_DATA_LENGTH 280
+#define SONY_EEPROM_LSC_INDEX 0x404
+#define SONY_LSC_REG_SETTING_INDEX 0x4800
+#define SONY_EEPROM_LSC_CHECKNUM 5
+
 enum flash_type {
 	LED_FLASH = 1,
 	STROBE_FLASH,
@@ -89,6 +94,10 @@ enum msm_sensor_clk_type_t {
 enum msm_sensor_power_seq_gpio_t {
 	SENSOR_GPIO_RESET,
 	SENSOR_GPIO_STANDBY,
+	SENSOR_GPIO_CAM_VAA_V2P8,  
+	SENSOR_GPIO_CAM_VDDAF_V2P8,
+	SENSOR_GPIO_CAM_VDDIO_V1P8,
+	SENSOR_GPIO_RESET1,
 	SENSOR_GPIO_AF_PWDM,
 	SENSOR_GPIO_VIO,
 	SENSOR_GPIO_VANA,
@@ -320,6 +329,7 @@ struct csi_lane_params_t {
 
 struct msm_sensor_info_t {
 	char sensor_name[MAX_SENSOR_NAME];
+    char module_name[MAX_SENSOR_NAME];
 	int32_t    session_id;
 	int32_t     subdev_id[SUB_MODULE_MAX];
 };
@@ -535,6 +545,8 @@ enum af_camera_name {
 	ACTUATOR_MAIN_CAM_3,
 	ACTUATOR_MAIN_CAM_4,
 	ACTUATOR_MAIN_CAM_5,
+	ACTUATOR_MAIN_CAM_6,
+	ACTUATOR_MAIN_CAM_7,
 	ACTUATOR_WEB_CAM_0,
 	ACTUATOR_WEB_CAM_1,
 	ACTUATOR_WEB_CAM_2,

@@ -1,6 +1,7 @@
 /*
  *  linux/kernel/printk.c
  *
+ *  Copyright(C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
  * Modified to make sys_syslog() more flexible: added commands to
@@ -352,7 +353,7 @@ static int syslog_action_restricted(int type)
 	if (dmesg_restrict)
 		return 1;
 	/* Unless restricted, we allow "read all" and "get buffer size" for everybody */
-	return type != SYSLOG_ACTION_READ_ALL && type != SYSLOG_ACTION_SIZE_BUFFER;
+	return type != SYSLOG_ACTION_READ_ALL && type != SYSLOG_ACTION_SIZE_BUFFER && type != SYSLOG_ACTION_READ;
 }
 
 static int check_syslog_permissions(int type, bool from_file)

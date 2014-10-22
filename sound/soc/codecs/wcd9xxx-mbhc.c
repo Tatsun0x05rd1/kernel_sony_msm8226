@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2014 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -121,7 +122,7 @@
 #define WCD9XXX_V_CS_HS_MAX 500
 #define WCD9XXX_V_CS_NO_MIC 5
 #define WCD9XXX_MB_MEAS_DELTA_MAX_MV 80
-#define WCD9XXX_CS_MEAS_DELTA_MAX_MV 12
+#define WCD9XXX_CS_MEAS_DELTA_MAX_MV 100
 
 static int impedance_detect_en;
 module_param(impedance_detect_en, int,
@@ -1512,8 +1513,10 @@ wcd9xxx_find_plug_type(struct wcd9xxx_mbhc *mbhc,
 		else
 			d->_vdces = vdce;
 
-		if (d->_vdces >= no_mic && d->_vdces < hs_max)
+		if (d->_vdces >= 750 && d->_vdces < hs_max)
 			d->_type = PLUG_TYPE_HEADSET;
+		else if (d->_vdces >= no_mic && d->_vdces < 750)
+			d->_type = PLUG_TYPE_NOT_SUPPORT;
 		else if (d->_vdces < no_mic)
 			d->_type = PLUG_TYPE_HEADPHONE;
 		else
@@ -1561,10 +1564,12 @@ wcd9xxx_find_plug_type(struct wcd9xxx_mbhc *mbhc,
 			continue;
 		}
 
-		if ((i > 0) && (d->_type != dprev->_type)) {
-			pr_debug("%s: Invalid, inconsistent types\n", __func__);
-			type = PLUG_TYPE_INVALID;
-			goto exit;
+		if (dprev != NULL) {
+			if ((i > 0) && (d->_type != dprev->_type)) {
+				pr_debug("%s: Invalid, inconsistent types\n", __func__);
+				type = PLUG_TYPE_INVALID;
+				goto exit;
+			}
 		}
 
 		if (!d->swap_gnd && !d->hwvalue &&
@@ -2073,6 +2078,10 @@ static void wcd9xxx_find_plug_and_report(struct wcd9xxx_mbhc *mbhc,
 							  MBHC_USE_HPHL_TRIGGER,
 						 false);
 		}
+	} else if (plug_type == PLUG_TYPE_NOT_SUPPORT) {
+		wcd9xxx_report_plug(mbhc, 1, SND_JACK_UNSUPPORTED);
+		msleep(100);
+		wcd9xxx_cleanup_hs_polling(mbhc);
 	} else {
 		WARN(1, "Unexpected current plug_type %d, plug_type %d\n",
 		     mbhc->current_plug, plug_type);

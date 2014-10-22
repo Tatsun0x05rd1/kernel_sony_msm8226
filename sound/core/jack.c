@@ -127,6 +127,8 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 		goto fail_input;
 	}
 
+	__set_bit(INPUT_PROP_NO_DUMMY_RELEASE, jack->input_dev->propbit);
+
 	jack->input_dev->phys = "ALSA";
 
 	jack->type = type;

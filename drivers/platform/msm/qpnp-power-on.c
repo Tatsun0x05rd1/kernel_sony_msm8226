@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright(C) 2012-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -23,6 +24,8 @@
 #include <linux/input.h>
 #include <linux/log2.h>
 #include <linux/qpnp/power-on.h>
+#include <linux/fih_sw_info.h>	 
+#include <mach/msm_smem.h>
 
 /* Common PNP defines */
 #define QPNP_PON_REVISION2(base)		(base + 0x01)
@@ -90,6 +93,16 @@
 
 #define QPNP_KEY_STATUS_DELAY			msecs_to_jiffies(250)
 #define QPNP_PON_REV_B				0x01
+
+#ifdef CONFIG_FIH_FORCE_TRIGGER_PANIC
+#define FORCE_TRIGGER_PANIC_TIMEOUT_MS 30 * 1000
+
+struct delayed_work detect_release_work;
+extern unsigned int debug_force_trigger_panic_enable;
+static unsigned int has_delayed_work = 0;
+#endif
+
+static int is_warmboot = 0;
 
 enum pon_type {
 	PON_KPDPWR,
@@ -407,6 +420,26 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	input_report_key(pon->pon_input, cfg->key_code,
 					(pon_rt_sts & pon_rt_bit));
 	input_sync(pon->pon_input);
+
+#ifdef CONFIG_FIH_FORCE_TRIGGER_PANIC
+
+	if (cfg->pon_type == PON_KPDPWR)
+	{
+		if ( (pon_rt_sts & pon_rt_bit) && debug_force_trigger_panic_enable) /* Power key down */
+		{
+			schedule_delayed_work(&detect_release_work, msecs_to_jiffies(FORCE_TRIGGER_PANIC_TIMEOUT_MS));
+			has_delayed_work = 1;
+			pr_info("%s : schedule_delayed_work\n", __func__);
+		}
+		else if (!(pon_rt_sts & pon_rt_bit) && has_delayed_work)
+		{
+			__cancel_delayed_work(&detect_release_work);
+			has_delayed_work = 0;
+			pr_info("%s : cancel_delayed_work_sync\n", __func__);
+		}
+	}
+
+#endif
 
 	return 0;
 }
@@ -1031,6 +1064,144 @@ free_input_dev:
 	return rc;
 }
 
+void * get_pwron_cause_virt_addr(void);
+void * get_hw_wd_virt_addr(void);
+
+#ifdef CONFIG_FIH_FORCE_TRIGGER_PANIC
+static void detect_release_request(struct work_struct *work)
+{
+	unsigned int *pwron_cause_ptr;
+	
+	pwron_cause_ptr = (unsigned int*) get_pwron_cause_virt_addr();
+	if (pwron_cause_ptr != NULL){
+		*pwron_cause_ptr |= MTD_PWR_ON_EVENT_FORCE_TRIGGER_PANIC;
+	}
+	pr_err("FORCE TRIGGER PANIC !!\n");
+	panic("force_trigger_panic");
+}
+#endif
+
+static unsigned int fih_power_on_cause; 
+
+#ifdef CONFIG_FIH_USER_DEBUG
+extern int spmi_dfs_readdata(u32 cnt, u32 addr);
+#endif
+
+void show_startup_reason(void)
+{
+	unsigned long long*		pSmemPon = NULL;
+	unsigned int 				bsize;
+	pSmemPon = (unsigned long long* )smem_get_entry(SMEM_POWER_ON_STATUS_INFO, &bsize);
+
+	if (pSmemPon)
+		printk(KERN_ERR "Qualcomm - power on cause = 0x%08llx\n", *pSmemPon);
+	else
+		printk(KERN_ERR "Qualcomm - power on cause = unknown\n");
+}
+
+#ifdef CONFIG_FIH_SEMC_S1
+
+static unsigned int s1_poweron_reason;
+static unsigned int s1_warmboot_reason;
+
+static int __init startup_reason_setup(char *param)
+{
+	sscanf(param, "%x", &s1_poweron_reason);
+	return 0;
+}
+early_param("startup", startup_reason_setup);
+
+static int __init warmboot_reason_setup(char *param)
+{
+	sscanf(param, "%x", &s1_warmboot_reason);
+	if (s1_warmboot_reason != 0)
+		is_warmboot = 1;
+	return 0;
+}
+early_param("warmboot", warmboot_reason_setup);
+#endif
+extern unsigned int latest_modem_err; 
+
+void fih_parse_power_on_cause (void)
+{
+	unsigned int *pwron_cause_ptr;
+	unsigned int *hw_wd_ptr;
+
+#ifndef CONFIG_FIH_SEMC_S1	
+	is_warmboot = qpnp_pon_is_warm_reset();
+
+	if (is_warmboot < 0)
+		printk(KERN_ERR "read warm reset error %d\n", is_warmboot);
+#endif
+
+#ifdef CONFIG_FIH_SEMC_S1
+	printk(KERN_ERR "S1 boot - power on cause = 0x%08x \n", s1_poweron_reason);
+	printk(KERN_ERR "S1 boot - warmboot reason = 0x%08x \n", s1_warmboot_reason);
+#endif	
+
+#ifdef CONFIG_FIH_USER_DEBUG
+	spmi_dfs_readdata(0x10, 0x800);
+#endif
+
+	pwron_cause_ptr = (unsigned int*) get_pwron_cause_virt_addr();
+	hw_wd_ptr = (unsigned int*) get_hw_wd_virt_addr();
+	if ( (pwron_cause_ptr != NULL) && (hw_wd_ptr != NULL) ) {
+		if (is_warmboot != 0) {
+
+			latest_modem_err = *pwron_cause_ptr;
+			
+			if (*hw_wd_ptr == FIH_HW_WD_SIGNATURE)
+				*pwron_cause_ptr |= MTD_PWR_ON_EVENT_HW_WD_RESET;
+
+			if (*pwron_cause_ptr & MTD_PWR_ON_EVENT_RPM_WD_RESET)
+				printk(KERN_ERR "System was reset by RPM Watchdog Reset!\r\n");
+
+			fih_power_on_cause |= *pwron_cause_ptr;
+			if ((*pwron_cause_ptr == MTD_PWR_ON_EVENT_CLEAN_DATA) ||
+				(*pwron_cause_ptr == MTD_PWR_ON_EVENT_SOFTWARE_RESET) || 
+				(*pwron_cause_ptr == MTD_PWR_ON_EVENT_PWR_OFF_CHG_REBOOT)) {
+				printk(KERN_ERR "System was GOOD! No news is good news.\r\n");
+			} else {
+				fih_power_on_cause |= MTD_PWR_ON_EVENT_ABNORMAL_RESET;
+				printk(KERN_ERR "System was NOT GOOD! Please check the power on cause.\r\n");
+			}
+		} else {
+			printk(KERN_ERR "Cold boot!\r\n");
+		}
+		/* Clean the signature */
+		*pwron_cause_ptr = MTD_PWR_ON_EVENT_CLEAN_DATA;
+		/* We will clean the signature when we reset device properly */
+		*hw_wd_ptr = FIH_HW_WD_SIGNATURE;
+	}
+}
+
+unsigned int fih_get_power_on_cause(void)
+{
+	return fih_power_on_cause;
+}
+EXPORT_SYMBOL(fih_get_power_on_cause);
+module_param_named(poweron_cause, fih_power_on_cause, int, S_IRUGO);
+
+u32 reason;
+void msm_write_restart_reason(u32 reason);
+static int write_restart_reason(const char *val, struct kernel_param *kp)
+{
+	int ret;
+
+	ret = param_set_uint(val, kp);
+	if (ret) {
+		pr_err("error setting value %d\n", ret);
+		return ret;
+	}
+
+	if (reason)
+		msm_write_restart_reason(reason);
+
+	return 0;
+}
+module_param_call(restart_reason, write_restart_reason, NULL,
+					&reason, 0644);
+
 static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 {
 	struct qpnp_pon *pon;
@@ -1040,6 +1211,9 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 	int rc, sys_reset, index;
 	u8 pon_sts = 0, buf[2];
 	u16 poff_sts = 0;
+#ifdef CONFIG_FIH_FORCE_TRIGGER_PANIC
+	INIT_DELAYED_WORK(&detect_release_work, detect_release_request);
+#endif
 
 	pon = devm_kzalloc(&spmi->dev, sizeof(struct qpnp_pon),
 							GFP_KERNEL);
@@ -1175,6 +1349,10 @@ static int __devinit qpnp_pon_probe(struct spmi_device *spmi)
 			"Unable to intialize PON configurations\n");
 		return rc;
 	}
+
+	show_startup_reason();
+	fih_parse_power_on_cause ();
+	printk(KERN_EMERG "FIH kernel - power on cause = 0x%08x \r\n", fih_power_on_cause);
 
 	return rc;
 }

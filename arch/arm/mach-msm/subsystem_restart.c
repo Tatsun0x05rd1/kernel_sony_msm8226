@@ -1,4 +1,5 @@
 /* Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
+ * Copyright(C) 2014 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -41,6 +42,13 @@
 #include <mach/subsystem_restart.h>
 
 #include "smd_private.h"
+
+extern void clear_all_modem_pwron_cause (void);
+static int ssr_count = 0;
+spinlock_t ssr_lock;
+
+#include <linux/fih_sw_info.h> 
+extern void write_pwron_cause (int pwron_cause); 
 
 static int enable_debug;
 module_param(enable_debug, int, S_IRUGO | S_IWUSR);
@@ -333,7 +341,10 @@ found:
 	return order;
 }
 
-static int max_restarts;
+static int ssr_state = 0;
+module_param(ssr_state, int, 0644);
+
+static int max_restarts = 8;
 module_param(max_restarts, int, 0644);
 
 static long max_history_time = 3600;
@@ -695,6 +706,15 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 	mutex_unlock(&soc_order_reg_lock);
 	mutex_unlock(&track->lock);
 
+	spin_lock_irqsave(&ssr_lock, flags);
+	ssr_count --;
+	spin_unlock_irqrestore(&ssr_lock, flags);
+
+	if (ssr_count == 0)
+		clear_all_modem_pwron_cause();
+	else if (ssr_count < 0)
+		pr_err("error ssr_count = %d\n",  ssr_count);
+	
 	spin_lock_irqsave(&track->s_lock, flags);
 	track->p_state = SUBSYS_NORMAL;
 	wake_unlock(&dev->wake_lock);
@@ -730,9 +750,20 @@ static void __subsystem_restart_dev(struct subsys_device *dev)
 	spin_unlock_irqrestore(&track->s_lock, flags);
 }
 
+void fileread(const char * filename)
+{
+  struct file *filp;
+
+  filp=filp_open(filename,O_RDONLY,0);
+  filp_close(filp,NULL);
+}
+
 int subsystem_restart_dev(struct subsys_device *dev)
 {
+	char *filename="/sys/module/subsystem_restart/parameters/ssr_state";
+
 	const char *name;
+	unsigned long flags;
 
 	if (!get_device(&dev->dev))
 		return -ENODEV;
@@ -755,8 +786,17 @@ int subsystem_restart_dev(struct subsys_device *dev)
 		return -EBUSY;
 	}
 
-	pr_info("Restart sequence requested for %s, restart_level = %s.\n",
-		name, restart_levels[dev->restart_level]);
+	if (dev->restart_level == RESET_SUBSYS_COUPLED) {
+		spin_lock_irqsave(&ssr_lock, flags);
+		ssr_count ++;
+		spin_unlock_irqrestore(&ssr_lock, flags);
+	}
+	
+	pr_info("Restart sequence requested for %s, restart_level = %s %d.\n",
+		name, restart_levels[dev->restart_level], ssr_count);
+
+	pr_info("<1>Read File from Kernel.\n");
+	fileread(filename);
 
 	switch (dev->restart_level) {
 
@@ -843,8 +883,9 @@ static ssize_t subsys_debugfs_write(struct file *filp,
 		const char __user *ubuf, size_t cnt, loff_t *ppos)
 {
 	struct subsys_device *subsys = filp->private_data;
-	char buf[10];
+	char buf[50];
 	char *cmp;
+	char system[32];
 
 	cnt = min(cnt, sizeof(buf) - 1);
 	if (copy_from_user(&buf, ubuf, cnt))
@@ -853,8 +894,20 @@ static ssize_t subsys_debugfs_write(struct file *filp,
 	cmp = strstrip(buf);
 
 	if (!strcmp(cmp, "restart")) {
-		if (subsystem_restart_dev(subsys))
+
+		/* extract the name of the sub-system */
+		sscanf(subsys->miscdevice_name, "subsys_%s", system);
+
+		snprintf(buf, sizeof(buf), "User trigger %s SSR.", system);
+
+		pr_err("%s Let's note!\n", buf);
+		write_pwron_cause(MODEM_FATAL_ERR);
+		log_ss_failure_reason(system, 0, buf);
+
+		if (subsystem_restart_dev(subsys)){
+			clear_all_modem_pwron_cause();
 			return -EIO;
+		}
 	} else if (!strcmp(cmp, "get")) {
 		if (subsystem_get(subsys->desc->name))
 			return -EIO;
@@ -1140,6 +1193,8 @@ struct subsys_device *subsys_register(struct subsys_desc *desc)
 	wake_lock_init(&subsys->wake_lock, WAKE_LOCK_SUSPEND, subsys->wlname);
 	INIT_WORK(&subsys->work, subsystem_restart_wq_func);
 	spin_lock_init(&subsys->track.s_lock);
+
+	spin_lock_init(&ssr_lock);
 
 	subsys->id = ida_simple_get(&subsys_ida, 0, 0, GFP_KERNEL);
 	if (subsys->id < 0) {

@@ -1,6 +1,7 @@
 /*
  *  syscore.c - Execution of system core operations.
  *
+ *  Copyright (C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *  Copyright (C) 2011 Rafael J. Wysocki <rjw@sisk.pl>, Novell Inc.
  *
  *  This file is released under the GPLv2.
@@ -53,15 +54,27 @@ int syscore_suspend(void)
 
 	/* Return error code if there are any wakeup interrupts pending. */
 	ret = check_wakeup_irqs();
+    #ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+	if (ret)
+    {
+        pr_info("[PM]check_wakeup_irqs retune 1. \n");
+		return ret;
+    }
+    else
+        pr_info("[PM]check_wakeup_irqs retune 0. \n");
+    #else
 	if (ret)
 		return ret;
+    #endif
 
 	WARN_ONCE(!irqs_disabled(),
 		"Interrupts enabled before system core suspend.\n");
 
 	list_for_each_entry_reverse(ops, &syscore_ops_list, node)
 		if (ops->suspend) {
+        #ifndef CONFIG_FIH_SUSPEND_RESUME_LOG
 			if (initcall_debug)
+        #endif
 				pr_info("PM: Calling %pF\n", ops->suspend);
 			ret = ops->suspend();
 			if (ret)
@@ -97,7 +110,9 @@ void syscore_resume(void)
 
 	list_for_each_entry(ops, &syscore_ops_list, node)
 		if (ops->resume) {
+        #ifndef CONFIG_FIH_SUSPEND_RESUME_LOG
 			if (initcall_debug)
+        #endif
 				pr_info("PM: Calling %pF\n", ops->resume);
 			ops->resume();
 			WARN_ONCE(!irqs_disabled(),
@@ -118,7 +133,9 @@ void syscore_shutdown(void)
 
 	list_for_each_entry_reverse(ops, &syscore_ops_list, node)
 		if (ops->shutdown) {
+        #ifndef CONFIG_FIH_SUSPEND_RESUME_LOG
 			if (initcall_debug)
+        #endif
 				pr_info("PM: Calling %pF\n", ops->shutdown);
 			ops->shutdown();
 		}

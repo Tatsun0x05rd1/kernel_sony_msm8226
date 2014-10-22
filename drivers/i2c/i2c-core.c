@@ -1,6 +1,7 @@
 /* i2c-core.c - a device driver for the iic-bus interface		     */
 /* ------------------------------------------------------------------------- */
 /*   Copyright (C) 1995-99 Simon G. Vogl
+/*   Copyright (C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,6 +42,9 @@
 #include <linux/pm_runtime.h>
 #include <asm/uaccess.h>
 
+#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+#include <linux/kallsyms.h>
+#endif
 #include "i2c-core.h"
 
 
@@ -177,6 +181,9 @@ static int i2c_legacy_suspend(struct device *dev, pm_message_t mesg)
 	driver = to_i2c_driver(dev->driver);
 	if (!driver->suspend)
 		return 0;
+	#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+       printk(KERN_ERR "[PM]i2c-core:  i2c legacy suspend: [%s] \n", driver->driver.name);
+	#endif
 	return driver->suspend(client, mesg);
 }
 
@@ -190,15 +197,27 @@ static int i2c_legacy_resume(struct device *dev)
 	driver = to_i2c_driver(dev->driver);
 	if (!driver->resume)
 		return 0;
+	#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+	 printk(KERN_ERR "[PM]i2c-core:  i2c legacy resume: [%s] \n", driver->driver.name);
+	#endif
 	return driver->resume(client);
 }
 
 static int i2c_device_pm_suspend(struct device *dev)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+	#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+	const struct dev_pm_ops *temp ;
+	#endif
 
 	if (pm)
+	{
+		#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+		temp  = dev->driver->pm;
+   	 	print_symbol("[PM]i2c pm suspend: %s\n", (unsigned long)temp->suspend);
+		#endif
 		return pm_generic_suspend(dev);
+	}
 	else
 		return i2c_legacy_suspend(dev, PMSG_SUSPEND);
 }
@@ -206,9 +225,18 @@ static int i2c_device_pm_suspend(struct device *dev)
 static int i2c_device_pm_resume(struct device *dev)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+	#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+	const struct dev_pm_ops *temp ;
+	#endif
 
 	if (pm)
+	{
+		#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+        temp  = dev->driver->pm;
+   	 	print_symbol("i2c pm resume: %s\n", (unsigned long)temp->resume);
+		#endif
 		return pm_generic_resume(dev);
+	}
 	else
 		return i2c_legacy_resume(dev);
 }

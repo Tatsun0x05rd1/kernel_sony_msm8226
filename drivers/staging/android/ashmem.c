@@ -365,6 +365,11 @@ static int ashmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	if (!sc->nr_to_scan)
 		return lru_count;
 
+	if ((&ashmem_mutex)->owner == current) {
+		pr_err("Skip locking ashmem_mutex to avoid deadlock\n");
+		return -1;
+	}
+
 	if (!mutex_trylock(&ashmem_mutex))
 		return -1;
 

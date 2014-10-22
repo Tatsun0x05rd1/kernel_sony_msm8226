@@ -45,6 +45,12 @@ extern unsigned long lpj_fine;
 void calibrate_delay(void);
 void msleep(unsigned int msecs);
 unsigned long msleep_interruptible(unsigned int msecs);
+
+#ifdef CONFIG_FIH_HR_MSLEEP
+void hr_msleep(unsigned int msecs);
+unsigned long hr_msleep_interruptible(unsigned int msecs);
+#endif
+
 void usleep_range(unsigned long min, unsigned long max);
 
 static inline void usleep(unsigned long usecs)

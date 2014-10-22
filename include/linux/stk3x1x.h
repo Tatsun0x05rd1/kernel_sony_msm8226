@@ -25,6 +25,8 @@ struct stk3x1x_platform_data {
 	uint32_t transmittance;
 	uint32_t int_flags;
 	bool use_fir;
+	uint32_t lpm_uA;
+	uint32_t hpm_uA;
 };
 
 #endif /* __STK3X1X_H__ */

@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -34,6 +35,9 @@
 
 #include "peripheral-loader.h"
 #include "scm-pas.h"
+
+#include <linux/fih_sw_info.h> 
+extern void write_pwron_cause (int pwron_cause); 
 
 /* VENUS WRAPPER registers */
 #define VENUS_WRAPPER_HW_VERSION			0x0
@@ -100,6 +104,20 @@ struct venus_data {
 };
 
 #define subsys_to_drv(d) container_of(d, struct venus_data, subsys_desc)
+
+
+/* %%TODO: verify this using the commands provided by QCT */
+void venus_log_failure_reason(char* err_str1, char*err_str2) {
+	char temp[DIAG_BUFFER_LEN];
+
+	pr_err("VENUS Fatal Error. Let's note!\n");
+	write_pwron_cause(MODEM_FATAL_ERR);	
+
+	snprintf(temp, sizeof(temp), "%s %s", err_str1, err_str2);
+	log_ss_failure_reason("venus", 0, temp);
+}
+
+EXPORT_SYMBOL(venus_log_failure_reason);
 
 static int venus_register_domain(u32 fw_max_sz)
 {

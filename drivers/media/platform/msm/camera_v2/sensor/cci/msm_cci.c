@@ -49,6 +49,11 @@
 
 static struct v4l2_subdev *g_cci_subdev;
 
+struct regulator *vcc_i2c; 
+#define CAM_I2C_VTG_MIN_UV	1800000
+#define CAM_I2C_VTG_MAX_UV	1800000
+#define CAM_I2C_LOAD_UA	10000
+
 static void msm_cci_set_clk_param(struct cci_device *cci_dev)
 {
 	struct msm_cci_clk_params_t *clk_params = NULL;
@@ -778,27 +783,33 @@ static int32_t msm_cci_config(struct v4l2_subdev *sd,
 	struct msm_camera_cci_ctrl *cci_ctrl)
 {
 	int32_t rc = 0;
+	uint32_t cci_retry = 3;
 	CDBG("%s line %d cmd %d\n", __func__, __LINE__,
 		cci_ctrl->cmd);
-	switch (cci_ctrl->cmd) {
-	case MSM_CCI_INIT:
-		rc = msm_cci_init(sd, cci_ctrl);
-		break;
-	case MSM_CCI_RELEASE:
-		rc = msm_cci_release(sd);
-		break;
-	case MSM_CCI_I2C_READ:
-		rc = msm_cci_i2c_read_bytes(sd, cci_ctrl);
-		break;
-	case MSM_CCI_I2C_WRITE:
-		rc = msm_cci_i2c_write(sd, cci_ctrl);
-		break;
-	case MSM_CCI_GPIO_WRITE:
-		break;
-	default:
-		rc = -ENOIOCTLCMD;
-	}
-	CDBG("%s line %d rc %d\n", __func__, __LINE__, rc);
+	do {
+		switch (cci_ctrl->cmd) {
+		case MSM_CCI_INIT:
+			rc = msm_cci_init(sd, cci_ctrl);
+			break;
+		case MSM_CCI_RELEASE:
+			rc = msm_cci_release(sd);
+			break;
+		case MSM_CCI_I2C_READ:
+			rc = msm_cci_i2c_read_bytes(sd, cci_ctrl);
+			break;
+		case MSM_CCI_I2C_WRITE:
+			rc = msm_cci_i2c_write(sd, cci_ctrl);
+			break;
+		case MSM_CCI_GPIO_WRITE:
+			break;
+		default:
+			rc = -ENOIOCTLCMD;
+		}
+		CDBG("%s line %d rc %d\n", __func__, __LINE__, rc);
+		if(rc < 0)
+			pr_err("%s cci_ctrl->cmd = %d rc %d cci_retry %d\n", __func__, cci_ctrl->cmd, rc,cci_retry);
+		cci_retry--;
+	}while(rc < 0 && cci_retry > 0);
 	cci_ctrl->status = rc;
 	return rc;
 }
@@ -1098,6 +1109,12 @@ struct v4l2_subdev *msm_cci_get_subdev(void)
 	return g_cci_subdev;
 }
 
+static int reg_set_optimum_mode_check(struct regulator *reg, int load_uA)
+{
+	return (regulator_count_voltages(reg) > 0) ?
+		regulator_set_optimum_mode(reg, load_uA) : 0;
+}
+
 static int __devinit msm_cci_probe(struct platform_device *pdev)
 {
 	struct cci_device *new_cci_dev;
@@ -1108,6 +1125,44 @@ static int __devinit msm_cci_probe(struct platform_device *pdev)
 		CDBG("%s: no enough memory\n", __func__);
 		return -ENOMEM;
 	}
+	//regulator_get
+	vcc_i2c = regulator_get(&pdev->dev, "vcc_i2c");
+	if (IS_ERR(vcc_i2c)){
+		pr_err("%s: Failed to get i2c regulator\n", __func__);
+		rc = PTR_ERR(vcc_i2c);
+		return rc;
+	}
+	CDBG("%s: lvs1 regulator_get success!\n", __func__);
+
+	//regulator_count_voltages
+	if (regulator_count_voltages(vcc_i2c) > 0){
+		rc = regulator_set_voltage(vcc_i2c, CAM_I2C_VTG_MIN_UV, CAM_I2C_VTG_MAX_UV);
+		if (rc){
+			pr_err("%s: reg set i2c vtg failed retval =%d\n", __func__, rc);
+			regulator_put(vcc_i2c);
+			return rc;
+		}
+	}
+	CDBG("%s: lvs1 voltages success!\n", __func__);
+
+	//set_optimum
+	rc = reg_set_optimum_mode_check(vcc_i2c, CAM_I2C_LOAD_UA);
+	if(rc < 0){
+		pr_err("%s: Regulator vcc_i2c set_opt failed rc=%d\n", __func__, rc);
+		return rc;
+	}
+	CDBG("%s: lvs1 set_optimum success!\n", __func__);
+
+	//regulator_enable
+	rc = regulator_enable(vcc_i2c);
+	if(rc){
+		pr_err("%s: Regulator vcc_i2c enable failed rc=%d\n", __func__, rc);
+		reg_set_optimum_mode_check(vcc_i2c, 0);
+		return rc;
+	}
+	msleep(1);
+	CDBG("%s: lvs1 regulator_enable success!\n", __func__);
+
 	v4l2_subdev_init(&new_cci_dev->msm_sd.sd, &msm_cci_subdev_ops);
 	new_cci_dev->msm_sd.sd.internal_ops = &msm_cci_internal_ops;
 	snprintf(new_cci_dev->msm_sd.sd.name,

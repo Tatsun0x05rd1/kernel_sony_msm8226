@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-13, The Linux Foundation. All rights reserved.
+ *Copyright (c) 2014 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -258,6 +259,8 @@ qpnp_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	unsigned long secs, secs_rtc, irq_flags;
 	struct qpnp_rtc *rtc_dd = dev_get_drvdata(dev);
 	struct rtc_time rtc_tm;
+	struct timespec ts;
+	struct rtc_time alarm_tm;
 
 	rtc_tm_to_time(&alarm->time, &secs);
 
@@ -276,6 +279,11 @@ qpnp_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		dev_err(dev, "Trying to set alarm in the past\n");
 		return -EINVAL;
 	}
+
+	getnstimeofday(&ts);
+	rtc_time_to_tm(ts.tv_sec, &rtc_tm);
+	ts.tv_sec += (secs - secs_rtc);
+	rtc_time_to_tm(ts.tv_sec, &alarm_tm);
 
 	value[0] = secs & 0xFF;
 	value[1] = (secs >> 8) & 0xFF;
@@ -309,6 +317,12 @@ qpnp_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 			alarm->time.tm_hour, alarm->time.tm_min,
 			alarm->time.tm_sec, alarm->time.tm_mday,
 			alarm->time.tm_mon, alarm->time.tm_year);
+	dev_info(dev, "RTC: %d:%d:%d %d/%d/%d, Alarm: %d:%d:%d %d/%d/%d UTC, secs=(%lu,%lu)\n",
+			rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec,
+			rtc_tm.tm_mday, rtc_tm.tm_mon+1, rtc_tm.tm_year+1900,
+			alarm_tm.tm_hour, alarm_tm.tm_min, alarm_tm.tm_sec,
+			alarm_tm.tm_mday, alarm_tm.tm_mon+1, alarm_tm.tm_year+1900,
+			secs_rtc, secs);
 rtc_rw_fail:
 	spin_unlock_irqrestore(&rtc_dd->alarm_ctrl_lock, irq_flags);
 	return rc;

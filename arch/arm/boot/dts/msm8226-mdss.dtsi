@@ -59,7 +59,8 @@
 		qcom,mdss-wb-off = <0x00011100 0x00013100>;
 		qcom,mdss-intf-off = <0x00000000 0x00021300>;
 		qcom,mdss-rot-block-size = <64>;
-		qcom,mdss-smp-mb-per-pipe = <4>;
+		qcom,mdss-rotator-ot-limit = <2>;
+		qcom,mdss-smp-mb-per-pipe = <2>;
 		vdd-cx-supply = <&pm8226_s1_corner>;
 
 		qcom,vbif-settings = <0x004 0x00000001>,
@@ -92,6 +93,9 @@
 		vdd-supply = <&pm8226_l15>;
 		vddio-supply = <&pm8226_l8>;
 		vdda-supply = <&pm8226_l4>;
+		qcom,platform-enable-gpio = <&msmgpio 52 0>;
+		qcom,platform-p5-gpio = <&msmgpio 2 0>;
+		qcom,platform-n5-gpio = <&msmgpio 3 0>;
 		qcom,platform-reset-gpio = <&msmgpio 25 0>;
 		qcom,platform-te-gpio = <&msmgpio 24 0>;
 		qcom,platform-strength-ctrl = [ff 06];
