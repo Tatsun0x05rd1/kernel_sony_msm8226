@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2013, Linux Foundation. All rights reserved.
+/* Copyright (c) 2009-2014, Linux Foundation. All rights reserved.
  * Copyright (C) 2011-2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -49,12 +49,6 @@
 #include <mach/msm_xo.h>
 #include <mach/msm_bus.h>
 #include <mach/rpm-regulator.h>
-
-#undef pr_debug
-#define pr_debug pr_info
-#undef dev_dbg
-#define dev_dbg dev_info
-
 
 #define MSM_USB_BASE	(motg->regs)
 #define DRIVER_NAME	"msm_otg"
@@ -1347,7 +1341,6 @@ static int msm_otg_notify_chg_type(struct msm_otg *motg)
 	}
 
 	pr_debug("setting usb power supply type %d\n", charger_type);
-        printk(KERN_INFO "msm_otg_notify_chg_type  charger_type= %d\n", charger_type);/*MTD-CONN-JY-USBPORTING-00+*/
 	power_supply_set_supply_type(psy, charger_type);
 	return 0;
 }
@@ -1670,7 +1663,6 @@ static void msm_otg_start_peripheral(struct usb_otg *otg, int on)
 		return;
 
 	if (on) {
-		printk(KERN_INFO "USB: msm_otg_start_peripheral cable connect gadget on... \n");/*MTD-CONN-JY-USBPORTING-00+*/
 		dev_dbg(otg->phy->dev, "gadget on\n");
 		/*
 		 * Some boards have a switch cotrolled by gpio
@@ -1686,7 +1678,6 @@ static void msm_otg_start_peripheral(struct usb_otg *otg, int on)
 
 		usb_gadget_vbus_connect(otg->gadget);
 	} else {
-		printk(KERN_INFO "USB: msm_otg_start_peripheral cable disconnect gadget off... \n");/*MTD-CONN-JY-USBPORTING-00+*/
 		dev_dbg(otg->phy->dev, "gadget off\n");
 		usb_gadget_vbus_disconnect(otg->gadget);
 		/* Configure BUS performance parameters to default */
@@ -1941,7 +1932,6 @@ static bool msm_chg_aca_detect(struct msm_otg *motg)
 			!test_and_set_bit(ID, &motg->inputs);
 		if (ret) {
 			dev_dbg(phy->dev, "ID A/B/C/GND is no more\n");
-			printk(KERN_INFO "USB: msm_chg_aca_detect ID A/B/C/GND is no more\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			motg->chg_type = USB_INVALID_CHARGER;
 			motg->chg_state = USB_CHG_STATE_UNDEFINED;
 		}
@@ -2582,17 +2572,12 @@ static void msm_otg_sm_work(struct work_struct *w)
 	bool work = 0, srp_reqd, dcp;
 
 	pm_runtime_resume(otg->phy->dev);
-        if (motg->pm_done)
-        {
-            pm_runtime_get_sync(otg->phy->dev);
-	    motg->pm_done = 0;
-        }
-
-//	pr_debug("%s work\n", otg_state_string(otg->phy->state));
-	pr_info("++++ %s : work, pm_done = %d, pm_usage_count = %d\n", otg_state_string(otg->phy->state),
-			motg->pm_done, atomic_read(&otg->phy->dev->power.usage_count));
-
-	printk(KERN_INFO "%s work\n", otg_state_string(otg->phy->state));/*MTD-CONN-JY-USBPORTING-00+*/
+	if (motg->pm_done)
+	{
+		pm_runtime_get_sync(otg->phy->dev);
+		motg->pm_done = 0;
+	}
+	pr_debug("%s work\n", otg_state_string(otg->phy->state));
 	switch (otg->phy->state) {
 	case OTG_STATE_UNDEFINED:
 		msm_otg_reset(otg->phy);
@@ -2620,7 +2605,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 		} else if ((!test_bit(ID, &motg->inputs) ||
 				test_bit(ID_A, &motg->inputs)) && otg->host) {
 			pr_debug("!id || id_A\n");
-                        printk(KERN_INFO "!id || id_A\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			if (msm_chg_mhl_detect(motg)) {
 				work = 1;
 				break;
@@ -2631,7 +2615,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			work = 1;
 		} else if (test_bit(B_SESS_VLD, &motg->inputs)) {
 			pr_debug("b_sess_vld\n");
-                        printk(KERN_INFO "b_sess_vld\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			switch (motg->chg_state) {
 			case USB_CHG_STATE_UNDEFINED:
 				msm_chg_detect_work(&motg->chg_work.work);
@@ -2696,7 +2679,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			}
 		} else if (test_bit(B_BUS_REQ, &motg->inputs)) {
 			pr_debug("b_sess_end && b_bus_req\n");
-			printk(KERN_INFO "b_sess_end && b_bus_req\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			if (msm_otg_start_srp(otg) < 0) {
 				clear_bit(B_BUS_REQ, &motg->inputs);
 				work = 1;
@@ -2707,7 +2689,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			break;
 		} else {
 			pr_debug("chg_work cancel");
-			printk(KERN_INFO "chg_work cancel\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			del_timer_sync(&motg->chg_check_timer);
 			clear_bit(B_FALSE_SDP, &motg->inputs);
 			clear_bit(A_BUS_REQ, &motg->inputs);
@@ -2742,10 +2723,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			pm_runtime_mark_last_busy(otg->phy->dev);
 			pm_runtime_autosuspend(otg->phy->dev);
 			motg->pm_done = 1;
-			pr_info("+++ %s :: motg->pm_done : %d, motg->in_lpm : %d, pm_usage_count : %d\n",
-				__func__, motg->pm_done, atomic_read(&motg->in_lpm),
-					atomic_read(&otg->phy->dev->power.usage_count));
-
 		}
 		break;
 	case OTG_STATE_B_SRP_INIT:
@@ -2755,7 +2732,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 				(test_bit(B_SESS_VLD, &motg->inputs) &&
 				!test_bit(ID_B, &motg->inputs))) {
 			pr_debug("!id || id_a/c || b_sess_vld+!id_b\n");
-			printk(KERN_INFO "!id || id_a/c || b_sess_vld+!id_b\n");/*MTD-CONN-JY-USBPORTING-01+*/
 			msm_otg_del_timer(motg);
 			otg->phy->state = OTG_STATE_B_IDLE;
 			/*
@@ -2767,7 +2743,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 		} else if (test_bit(B_SRP_FAIL, &motg->tmouts)) {
 			pr_debug("b_srp_fail\n");
 			pr_info("A-device did not respond to SRP\n");
-			printk(KERN_INFO "A-device did not respond to SRP\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			clear_bit(B_BUS_REQ, &motg->inputs);
 			clear_bit(B_SRP_FAIL, &motg->tmouts);
 			otg_send_event(OTG_EVENT_NO_RESP_FOR_SRP);
@@ -2791,7 +2766,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 				test_bit(ID_B, &motg->inputs) ||
 				!test_bit(B_SESS_VLD, &motg->inputs)) {
 			pr_debug("!id  || id_a/b || !b_sess_vld\n");
-			printk(KERN_INFO "!id  || id_a/b || !b_sess_vld\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			motg->chg_state = USB_CHG_STATE_UNDEFINED;
 			motg->chg_type = USB_INVALID_CHARGER;
 			msm_otg_notify_charger(motg, 0);
@@ -2811,7 +2785,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 				otg->gadget->b_hnp_enable &&
 				test_bit(A_BUS_SUSPEND, &motg->inputs)) {
 			pr_debug("b_bus_req && b_hnp_en && a_bus_suspend\n");
-			printk(KERN_INFO "b_bus_req && b_hnp_en && a_bus_suspend\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			msm_otg_start_timer(motg, TB_ASE0_BRST, B_ASE0_BRST);
 			/* D+ pullup should not be disconnected within 4msec
 			 * after A device suspends the bus. Otherwise PET will
@@ -2829,7 +2802,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 		} else if (test_bit(A_BUS_SUSPEND, &motg->inputs) &&
 				   test_bit(B_SESS_VLD, &motg->inputs)) {
 			pr_debug("a_bus_suspend && b_sess_vld\n");
-			printk(KERN_INFO "a_bus_suspend && b_sess_vld\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			if (motg->caps & ALLOW_LPM_ON_DEV_SUSPEND) {
 				pm_runtime_put_noidle(otg->phy->dev);
 				pm_runtime_suspend(otg->phy->dev);
@@ -2844,7 +2816,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 				test_bit(ID_B, &motg->inputs) ||
 				!test_bit(B_SESS_VLD, &motg->inputs)) {
 			pr_debug("!id || id_a/b || !b_sess_vld\n");
-			printk(KERN_INFO "!id || id_a/b || !b_sess_vld\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			msm_otg_del_timer(motg);
 			/*
 			 * A-device is physically disconnected during
@@ -2861,7 +2832,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			work = 1;
 		} else if (test_bit(A_CONN, &motg->inputs)) {
 			pr_debug("a_conn\n");
-			printk(KERN_INFO "a_conn\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			clear_bit(A_BUS_SUSPEND, &motg->inputs);
 			otg->phy->state = OTG_STATE_B_HOST;
 			/*
@@ -2876,7 +2846,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 		} else if (test_bit(B_ASE0_BRST, &motg->tmouts)) {
 			pr_debug("b_ase0_brst_tmout\n");
 			pr_info("B HNP fail:No response from A device\n");
-			printk(KERN_INFO "B HNP fail:No response from A device\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			msm_otg_start_host(otg, 0);
 			msm_otg_reset(otg->phy);
 			otg->host->is_b_host = 0;
@@ -2895,7 +2864,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 				!test_bit(A_CONN, &motg->inputs) ||
 				!test_bit(B_SESS_VLD, &motg->inputs)) {
 			pr_debug("!b_bus_req || !a_conn || !b_sess_vld\n");
-			printk(KERN_INFO "!b_bus_req || !a_conn || !b_sess_vld\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			clear_bit(A_CONN, &motg->inputs);
 			clear_bit(B_BUS_REQ, &motg->inputs);
 			msm_otg_start_host(otg, 0);
@@ -2912,7 +2880,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 		if (test_bit(ID, &motg->inputs) &&
 			!test_bit(ID_A, &motg->inputs)) {
 			pr_debug("id && !id_a\n");
-			printk(KERN_INFO "id && !id_a\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			otg->default_a = 0;
 			clear_bit(A_BUS_DROP, &motg->inputs);
 			otg->phy->state = OTG_STATE_B_IDLE;
@@ -2925,7 +2892,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 				(test_bit(A_SRP_DET, &motg->inputs) ||
 				 test_bit(A_BUS_REQ, &motg->inputs))) {
 			pr_debug("!a_bus_drop && (a_srp_det || a_bus_req)\n");
-			printk(KERN_INFO "!a_bus_drop && (a_srp_det || a_bus_req)\n");/*MTD-CONN-JY-USBPORTING-00+*/
 
 			clear_bit(A_SRP_DET, &motg->inputs);
 			/* Disable SRP detection */
@@ -2946,7 +2912,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			msm_otg_start_timer(motg, TA_WAIT_VRISE, A_WAIT_VRISE);
 		} else {
 			pr_debug("No session requested\n");
-			printk(KERN_INFO "No session requested\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			clear_bit(A_BUS_DROP, &motg->inputs);
 			if (test_bit(ID_A, &motg->inputs)) {
 					msm_otg_notify_charger(motg,
@@ -2971,7 +2936,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 				test_bit(A_BUS_DROP, &motg->inputs) ||
 				test_bit(A_WAIT_VRISE, &motg->tmouts)) {
 			pr_debug("id || a_bus_drop || a_wait_vrise_tmout\n");
-			printk(KERN_INFO "id || a_bus_drop || a_wait_vrise_tmout\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			clear_bit(A_BUS_REQ, &motg->inputs);
 			msm_otg_del_timer(motg);
 			msm_hsusb_vbus_power(motg, 0);
@@ -2979,7 +2943,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			msm_otg_start_timer(motg, TA_WAIT_VFALL, A_WAIT_VFALL);
 		} else if (test_bit(A_VBUS_VLD, &motg->inputs)) {
 			pr_debug("a_vbus_vld\n");
-			printk(KERN_INFO "a_vbus_vld\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			otg->phy->state = OTG_STATE_A_WAIT_BCON;
 			if (TA_WAIT_BCON > 0)
 				msm_otg_start_timer(motg, TA_WAIT_BCON,
@@ -3002,8 +2965,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 				test_bit(A_WAIT_BCON, &motg->tmouts)) {
 			pr_debug("(id && id_a/b/c) || a_bus_drop ||"
 					"a_wait_bcon_tmout\n");
-			printk(KERN_INFO "(id && id_a/b/c) || a_bus_drop ||"
-					"a_wait_bcon_tmout\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			if (test_bit(A_WAIT_BCON, &motg->tmouts)) {
 				pr_info("Device No Response\n");
 				otg_send_event(OTG_EVENT_DEV_CONN_TMOUT);
@@ -3024,7 +2985,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			msm_otg_start_timer(motg, TA_WAIT_VFALL, A_WAIT_VFALL);
 		} else if (!test_bit(A_VBUS_VLD, &motg->inputs)) {
 			pr_debug("!a_vbus_vld\n");
-			printk(KERN_INFO "!a_vbus_vld\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			clear_bit(B_CONN, &motg->inputs);
 			msm_otg_del_timer(motg);
 			msm_otg_start_host(otg, 0);
@@ -3048,7 +3008,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 				!test_bit(ID_A, &motg->inputs)) ||
 				test_bit(A_BUS_DROP, &motg->inputs)) {
 			pr_debug("id_a/b/c || a_bus_drop\n");
-			printk(KERN_INFO "id_a/b/c || a_bus_drop\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			clear_bit(B_CONN, &motg->inputs);
 			clear_bit(A_BUS_REQ, &motg->inputs);
 			msm_otg_del_timer(motg);
@@ -3059,7 +3018,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			msm_otg_start_timer(motg, TA_WAIT_VFALL, A_WAIT_VFALL);
 		} else if (!test_bit(A_VBUS_VLD, &motg->inputs)) {
 			pr_debug("!a_vbus_vld\n");
-			printk(KERN_INFO "!a_vbus_vld\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			clear_bit(B_CONN, &motg->inputs);
 			msm_otg_del_timer(motg);
 			otg->phy->state = OTG_STATE_A_VBUS_ERR;
@@ -3071,7 +3029,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			 * suspended or HNP is in progress.
 			 */
 			pr_debug("!a_bus_req\n");
-			printk(KERN_INFO "!a_bus_req\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			msm_otg_del_timer(motg);
 			otg->phy->state = OTG_STATE_A_SUSPEND;
 			if (otg->host->b_hnp_enable)
@@ -3081,7 +3038,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 				pm_runtime_put_sync(otg->phy->dev);
 		} else if (!test_bit(B_CONN, &motg->inputs)) {
 			pr_debug("!b_conn\n");
-			printk(KERN_INFO "!b_conn\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			msm_otg_del_timer(motg);
 			otg->phy->state = OTG_STATE_A_WAIT_BCON;
 			if (TA_WAIT_BCON > 0)
@@ -3112,8 +3068,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 				test_bit(A_AIDL_BDIS, &motg->tmouts)) {
 			pr_debug("id_a/b/c || a_bus_drop ||"
 					"a_aidl_bdis_tmout\n");
-			printk(KERN_INFO "id_a/b/c || a_bus_drop ||"
-					"a_aidl_bdis_tmout\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			msm_otg_del_timer(motg);
 			clear_bit(B_CONN, &motg->inputs);
 			otg->phy->state = OTG_STATE_A_WAIT_VFALL;
@@ -3124,7 +3078,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			msm_otg_start_timer(motg, TA_WAIT_VFALL, A_WAIT_VFALL);
 		} else if (!test_bit(A_VBUS_VLD, &motg->inputs)) {
 			pr_debug("!a_vbus_vld\n");
-			printk(KERN_INFO "!a_vbus_vld\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			msm_otg_del_timer(motg);
 			clear_bit(B_CONN, &motg->inputs);
 			otg->phy->state = OTG_STATE_A_VBUS_ERR;
@@ -3133,7 +3086,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 		} else if (!test_bit(B_CONN, &motg->inputs) &&
 				otg->host->b_hnp_enable) {
 			pr_debug("!b_conn && b_hnp_enable");
-			printk(KERN_INFO "!b_conn && b_hnp_enable\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			otg->phy->state = OTG_STATE_A_PERIPHERAL;
 			msm_otg_host_hnp_enable(otg, 1);
 			otg->gadget->is_a_peripheral = 1;
@@ -3141,7 +3093,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 		} else if (!test_bit(B_CONN, &motg->inputs) &&
 				!otg->host->b_hnp_enable) {
 			pr_debug("!b_conn && !b_hnp_enable");
-			printk(KERN_INFO "!b_conn && !b_hnp_enable\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			/*
 			 * bus request is dropped during suspend.
 			 * acquire again for next device.
@@ -3165,7 +3116,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 				!test_bit(ID_A, &motg->inputs)) ||
 				test_bit(A_BUS_DROP, &motg->inputs)) {
 			pr_debug("id _f/b/c || a_bus_drop\n");
-			printk(KERN_INFO "id _f/b/c || a_bus_drop\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			/* Clear BIDL_ADIS timer */
 			msm_otg_del_timer(motg);
 			otg->phy->state = OTG_STATE_A_WAIT_VFALL;
@@ -3178,7 +3128,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			msm_otg_start_timer(motg, TA_WAIT_VFALL, A_WAIT_VFALL);
 		} else if (!test_bit(A_VBUS_VLD, &motg->inputs)) {
 			pr_debug("!a_vbus_vld\n");
-			printk(KERN_INFO "!a_vbus_vld\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			/* Clear BIDL_ADIS timer */
 			msm_otg_del_timer(motg);
 			otg->phy->state = OTG_STATE_A_VBUS_ERR;
@@ -3187,7 +3136,6 @@ static void msm_otg_sm_work(struct work_struct *w)
 			msm_otg_start_host(otg, 0);
 		} else if (test_bit(A_BIDL_ADIS, &motg->tmouts)) {
 			pr_debug("a_bidl_adis_tmout\n");
-			printk(KERN_INFO "a_bidl_adis_tmout\n");/*MTD-CONN-JY-USBPORTING-00+*/
 			msm_otg_start_peripheral(otg, 0);
 			otg->gadget->is_a_peripheral = 0;
 			otg->phy->state = OTG_STATE_A_WAIT_BCON;
@@ -4949,7 +4897,7 @@ static int msm_otg_pm_resume(struct device *dev)
 
 	dev_dbg(dev, "OTG PM resume\n");
 
-        motg->pm_done = 0;
+	motg->pm_done = 0;
 	atomic_set(&motg->pm_suspended, 0);
 	if (motg->async_int || motg->sm_work_pending) {
 		pm_runtime_get_noresume(dev);
@@ -5011,6 +4959,3 @@ module_exit(msm_otg_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MSM USB transceiver driver");
-
-#undef pr_debug
-#undef dev_dbg
