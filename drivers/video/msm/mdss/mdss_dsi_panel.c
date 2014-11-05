@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  * Copyright(C) 2013 Foxconn International Holdings, Ltd. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -269,7 +269,7 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_panel_info *pinfo = NULL;
 	//int i;
-	printk("[DISPLAY]%s: + en %d\n", __func__, enable);
+
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return;
@@ -296,7 +296,9 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 			gpio_direction_output((ctrl_pdata->disp_en_gpio) , 1);
 		MDSS_MSLEEP(1);
-		/*for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
+
+		/*
+		for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
 			gpio_set_value((ctrl_pdata->rst_gpio),
 				pdata->panel_info.rst_seq[i]);
 			if (pdata->panel_info.rst_seq[++i])
@@ -308,7 +310,8 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 				gpio_set_value((ctrl_pdata->mode_gpio), 1);
 			else if (pinfo->mode_gpio_state == MODE_GPIO_LOW)
 				gpio_set_value((ctrl_pdata->mode_gpio), 0);
-		}*/
+		}
+		*/
 		if (gpio_is_valid(ctrl_pdata->disp_p5_gpio))
 			gpio_direction_output((ctrl_pdata->disp_p5_gpio) , 1);
 		MDSS_MSLEEP(1);
@@ -340,7 +343,6 @@ void mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 		MDSS_MSLEEP(10);
 	}
 	/* MM-KW-DISPLAY-panel-00-} */
-	printk("[DISPLAY]%s: -\n", __func__);
 }
 
 static char caset[] = {0x2a, 0x00, 0x00, 0x03, 0x00};	/* DTYPE_DCS_LWRITE */
@@ -442,7 +444,6 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	struct mipi_panel_info *mipi;
 	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
 
-	printk("[DISPLAY]%s: +\n", __func__);
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return -EINVAL;
@@ -486,7 +487,8 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	}
 	/* MM-KW-DISPLAY-panel-01-} */
 	PanelState = 1;
-	printk("[DISPLAY]%s: -\n", __func__);
+
+	pr_debug("%s:-\n", __func__);
 	return 0;
 }
 
@@ -494,8 +496,6 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 {
 	struct mipi_panel_info *mipi;
 	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
-
-	pr_info("[DISPLAY]%s: +\n", __func__);
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -508,6 +508,7 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
 
 	mipi  = &pdata->panel_info.mipi;
+
 	/* MM-KW-DISPLAY-panel-01+{ */
 	if (ctrl) {
 		if (ctrl->off_cmds.cmd_cnt)
@@ -517,8 +518,8 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 			__func__, ctrl, gPanelModel);
 	}
 	/* MM-KW-DISPLAY-panel-01-} */
-	pr_info("[DISPLAY]%s: -\n", __func__);
 
+	pr_debug("%s:-\n", __func__);
 	return 0;
 }
 
@@ -910,7 +911,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-front-porch", &tmp);
 		pinfo->lcdc.v_front_porch = (!rc ? tmp : 6);
 		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-pulse-width", &tmp);
-		pinfo->lcdc.v_pulse_width = (!rc ? tmp : 2);	
+		pinfo->lcdc.v_pulse_width = (!rc ? tmp : 2);
 	}
 	else
 	{
@@ -1011,11 +1012,11 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	pinfo->mipi.insert_dcs_cmd =
 			(!rc ? tmp : 1);
 	rc = of_property_read_u32(np,
-		"qcom,mdss-dsi-te-v-sync-continue-lines", &tmp);
+		"qcom,mdss-dsi-wr-mem-continue", &tmp);
 	pinfo->mipi.wr_mem_continue =
 			(!rc ? tmp : 0x3c);
 	rc = of_property_read_u32(np,
-		"qcom,mdss-dsi-te-v-sync-rd-ptr-irq-line", &tmp);
+		"qcom,mdss-dsi-wr-mem-start", &tmp);
 	pinfo->mipi.wr_mem_start =
 			(!rc ? tmp : 0x2c);
 	rc = of_property_read_u32(np,
@@ -1025,7 +1026,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-virtual-channel-id", &tmp);
 	pinfo->mipi.vc = (!rc ? tmp : 0);
 	pinfo->mipi.rgb_swap = DSI_RGB_SWAP_RGB;
-	data = of_get_property(np, "mdss-dsi-color-order", NULL);
+	data = of_get_property(np, "qcom,mdss-dsi-color-order", NULL);
 	if (data) {
 		if (!strcmp(data, "rgb_swap_rbg"))
 			pinfo->mipi.rgb_swap = DSI_RGB_SWAP_RBG;
@@ -1162,6 +1163,7 @@ int mdss_dsi_panel_init(struct device_node *node,
 	} else {
 		pr_info("%s:%d Continuous splash flag enabled.\n",
 				__func__, __LINE__);
+
 	/*PERI-AC-Display_init-00+{*/
 	/*Qualcomm have enable display in bootloader but S1 loader didn't enable
     	    panel so the display init flow isn't the same as Qualcomm.*/

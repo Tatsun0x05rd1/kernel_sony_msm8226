@@ -141,6 +141,7 @@ int ion_heap_pages_zero(struct page **pages, int num_pages)
 		if (!ptr)
 			return -ENOMEM;
 
+		memset(ptr, 0, npages_to_vmap * PAGE_SIZE);
 		/*
 		 * invalidate the cache to pick up the zeroing
 		 */
@@ -153,7 +154,6 @@ int ion_heap_pages_zero(struct page **pages, int num_pages)
 			outer_inv_range(phys, phys + PAGE_SIZE);
 			kunmap_atomic(p);
 		}
-		memset(ptr, 0, npages_to_vmap * PAGE_SIZE);
 		vunmap(ptr);
 	}
 
@@ -327,7 +327,6 @@ static size_t _ion_heap_freelist_drain(struct ion_heap *heap, size_t size,
 		if (total_drained >= size)
 			break;
 		list_del(&buffer->list);
-
 		heap->free_list_size -= buffer->size;
 		if (skip_pools)
 			buffer->flags |= ION_FLAG_FREED_FROM_SHRINKER;
