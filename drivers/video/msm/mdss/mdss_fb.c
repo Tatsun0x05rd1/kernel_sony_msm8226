@@ -511,7 +511,8 @@ static int mdss_fb_probe(struct platform_device *pdev)
 		break;
 	case MIPI_CMD_PANEL:
 		mfd->mdp_sync_pt_data.threshold = 1;
-		mfd->mdp_sync_pt_data.retire_threshold = 1;
+		mfd->mdp_sync_pt_data.retire_threshold = 0;
+//		mfd->mdp_sync_pt_data.retire_threshold = 1;
 		break;
 	default:
 		mfd->mdp_sync_pt_data.threshold = 2;
