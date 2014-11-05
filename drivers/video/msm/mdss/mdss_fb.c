@@ -2,7 +2,7 @@
  * Core MDSS framebuffer driver.
  *
  * Copyright (C) 2007 Google Incorporated
- * Copyright (c) 2008-2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2008-2014, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -173,15 +173,14 @@ static int mdss_fb_splash_thread(void *data)
 		goto end;
 	}
 
+	mfd->bl_updated = true;
+	mdss_fb_set_backlight(mfd, mfd->panel_info->bl_max >> 1);
+
 	ret = mfd->mdp.splash_fnc(mfd, ov_index, MDP_CREATE_SPLASH_OV);
 	if (ret) {
 		pr_err("Splash image failed\n");
 		goto splash_err;
 	}
-
-	mfd->bl_updated = true;
-	mdss_fb_set_backlight(mfd, mfd->panel_info->bl_max >> 1);
-
 
 	do {
 		schedule_timeout_interruptible(SPLASH_THREAD_WAIT_TIMEOUT * HZ);
@@ -313,10 +312,14 @@ static ssize_t mdss_fb_get_type(struct device *dev,
 	return ret;
 }
 
-static void mdss_fb_parse_dt_split(struct msm_fb_data_type *mfd)
+static void mdss_fb_parse_dt(struct msm_fb_data_type *mfd)
 {
 	u32 data[2];
 	struct platform_device *pdev = mfd->pdev;
+
+	mfd->splash_logo_enabled = of_property_read_bool(pdev->dev.of_node,
+				"qcom,mdss-fb-splash-logo-enabled");
+
 	if (of_property_read_u32_array(pdev->dev.of_node, "qcom,mdss-fb-split",
 				       data, 2))
 		return;
@@ -506,7 +509,7 @@ static int mdss_fb_probe(struct platform_device *pdev)
 	else
 		mfd->mdp_sync_pt_data.threshold = 2;
 
-	if (mfd->index == 0) {
+	if (mfd->splash_logo_enabled) {
 		mfd->splash_thread = kthread_run(mdss_fb_splash_thread, mfd,
 				"mdss_fb_splash");
 		if (IS_ERR(mfd->splash_thread)) {
@@ -1341,7 +1344,7 @@ static int mdss_fb_register(struct msm_fb_data_type *mfd)
 	mfd->panel_power_on = false;
 	mfd->dcm_state = DCM_UNINIT;
 
-	mdss_fb_parse_dt_split(mfd);
+	mdss_fb_parse_dt(mfd);
 
 	if (mdss_fb_alloc_fbmem(mfd)) {
 		pr_err("unable to allocate framebuffer memory\n");
